@@ -153,7 +153,7 @@ export default {
     }
 
     if (p.startsWith("/api/selbsttest/")) {
-      const t = decodeURIComponent(p.slice("/api/selbsttest/".length));
+      const t = decodeURIComponent(p.slice("/api/selbsttest/".length).split("/")[0] || "");
       if (!(await tokenOk(env, t))) return new Response("Not found", { status: 404 });
       return selbsttest(env);
     }
