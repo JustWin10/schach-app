@@ -117,20 +117,23 @@ async function selbsttest(env) {
   } catch (e) {
     out.speicher = "Fehler: " + e.message;
   }
-  for (const k of kandidaten(env)) {
-    const t0 = Date.now();
-    try {
-      const r = await anfrage(k, { messages: [{ role: "user", content: "Antworte nur mit dem Wort: bereit" }], max_tokens: 400, stream: false }, 45000);
-      let text = "";
+  // alle Modelle gleichzeitig, damit der Test schnell fertig ist
+  out.anbieter = await Promise.all(
+    kandidaten(env).map(async (k) => {
+      const t0 = Date.now();
       try {
-        const j = await r.json();
-        text = ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || JSON.stringify(j)).slice(0, 120);
-      } catch (e) {}
-      out.anbieter.push({ anbieter: k.anbieter, modell: k.model, status: r.status, ms: Date.now() - t0, antwort: text });
-    } catch (e) {
-      out.anbieter.push({ anbieter: k.anbieter, modell: k.model, status: 0, ms: Date.now() - t0, antwort: String(e && e.message) });
-    }
-  }
+        const r = await anfrage(k, { messages: [{ role: "user", content: "Antworte nur mit dem Wort: bereit" }], max_tokens: 300, stream: false }, 20000);
+        let text = "";
+        try {
+          const j = await r.json();
+          text = ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || JSON.stringify(j)).slice(0, 120);
+        } catch (e) {}
+        return { anbieter: k.anbieter, modell: k.model, status: r.status, ms: Date.now() - t0, antwort: text };
+      } catch (e) {
+        return { anbieter: k.anbieter, modell: k.model, status: 0, ms: Date.now() - t0, antwort: e && e.name === "AbortError" ? "keine Antwort in 20 s" : String(e && e.message) };
+      }
+    })
+  );
   return json(out);
 }
 
