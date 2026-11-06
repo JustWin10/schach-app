@@ -273,6 +273,10 @@ const TOOLS = [
   }, ["text"]),
   T("chat_lesen", "Trainer-Chat lesen", "Die letzten Nachrichten aus dem Trainer-Chat in der App.", { anzahl: { type: "integer", description: "Standard 10" } }, [], true),
   T("ki_status", "KI-Status", "Welcher KI-Anbieter zuletzt geantwortet hat und welche Fehler es gab.", {}, [], true),
+  T("dokumente_importieren", "Dokumente übernehmen", "Übernimmt gespeicherte App-Dokumente, z. B. aus der alten Claude-Version der App: state (Fortschritt), chat, analyse-<id>, verlauf-<id>. Vorhandene Dokumente werden nur mit ueberschreiben=true ersetzt. Danach muss Justin die App einmal neu öffnen.", {
+    dokumente: { type: "object", description: "Name → Inhalt, z. B. {\"state\": {...}, \"analyse-a-123\": {...}}", additionalProperties: { type: "object" } },
+    ueberschreiben: { type: "boolean", description: "Vorhandene Dokumente ersetzen" },
+  }, ["dokumente"]),
 ];
 
 function pruefeUebung(u) {
@@ -623,6 +627,21 @@ export class Store {
     const C = (await this.getDoc("chat")) || { turns: [] };
     const n = Math.max(1, Math.min(40, Number(a.anzahl) || 10));
     return (C.turns || []).slice(-n);
+  }
+
+  async w_dokumente_importieren(a) {
+    const docs = a.dokumente;
+    if (!docs || typeof docs !== "object" || Array.isArray(docs)) throw new Error("dokumente muss ein Objekt sein");
+    const ergebnis = {};
+    for (const [name, data] of Object.entries(docs)) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.~-]{0,100}$/.test(name)) { ergebnis[name] = "ungültiger Name"; continue; }
+      if (!data || typeof data !== "object") { ergebnis[name] = "kein Objekt"; continue; }
+      const da = await this.s.get("doc:" + name);
+      if (da && !a.ueberschreiben) { ergebnis[name] = "übersprungen, gibt es schon"; continue; }
+      await this.putDoc(name, data);
+      ergebnis[name] = da ? "ersetzt" : "neu";
+    }
+    return { ok: true, ergebnis, hinweis: "Justin muss die App einmal neu öffnen, damit sie den Stand lädt." };
   }
 
   async w_ki_status() {
