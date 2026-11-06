@@ -1,0 +1,35 @@
+# Server für Justins Schach-App (Cloudflare Worker, kostenloser Plan)
+# Liefert die App aus (Ordner ../web), speichert den Stand, leitet KI-Fragen weiter
+# und bietet Claude einen Connector (MCP) unter /mcp/<zugangscode>.
+
+name = "schach-app"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[assets]
+directory = "../web"
+binding = "ASSETS"
+
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "Store"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Store"]
+
+[vars]
+# SHA-256 des Zugangscodes. Der Code selbst steht nirgends im Repo.
+TOKEN_HASH = "25a608bbee688a6a276ee465dfd84c23ac32cd239ba93f540e81c1d1b35afc8b"
+
+# Reihenfolge der KI-Anbieter. Klappt einer nicht (Fehler, Limit, Credits leer),
+# nimmt der Server automatisch den nächsten.
+ANBIETER = "nvidia,gemini"
+
+# Modelle je Anbieter, in dieser Reihenfolge probiert. Zum Tauschen einfach hier ändern.
+NVIDIA_MODELLE = "deepseek-ai/deepseek-v4.1-flash,google/gemma-4-31b-it,mistralai/mistral-large-2-instruct"
+GEMINI_MODELLE = "gemini-2.5-flash-lite,gemini-2.5-flash"
+
+# So lange wartet der Server auf einen Anbieter, bevor er den nächsten probiert.
+WARTEZEIT_MS = "30000"

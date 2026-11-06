@@ -1,0 +1,12 @@
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+# Cloudflare
+server/.wrangler/
+server/node_modules/
+.dev.vars
+# Sonstiges
+.DS_Store

@@ -1,0 +1,1768 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>Justins Schach-App</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#f3f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141917" media="(prefers-color-scheme: dark)">
+</head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&family=Noto+Sans+Symbols+2&display=swap">
+<style>
+/* Layout: App mit fester Leiste unten (5 Bereiche), eine Spalte am Handy, max. 760px breit; Brett quadratisch mit absolut gesetzten Feldern */
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9ddd7;
+  --accent:#2f6b4f; --accent-fg:#ffffff; --accent-soft:#e2eee7;
+  --sq-light:#e9e4d4; --sq-dark:#7f9a86; --sq-hl:rgba(234,196,72,.55); --sq-sel:rgba(47,107,79,.55);
+  --good:#2f7d4a; --good-bg:#e4f2e8; --warn:#9a6a10; --warn-bg:#f7eed8; --bad:#b0392f; --bad-bg:#f8e3e0;
+  --me:#2f6b4f; --me-fg:#ffffff;
+  --f-display:"Bitter",Georgia,serif; --f-body:"Source Sans 3",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+  --f-piece:"Noto Sans Symbols 2","Segoe UI Symbol","Apple Symbols","DejaVu Sans",sans-serif;
+  --nav-h:62px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e7ece8; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-fg:#0f1512; --accent-soft:#1f3329;
+  --sq-light:#d9d3c0; --sq-dark:#6c8a75;
+  --good:#7fd19c; --good-bg:#1d3326; --warn:#e2b75a; --warn-bg:#352a14; --bad:#f08b80; --bad-bg:#3a1f1c;
+  --me:#2c5a44; --me-fg:#eef5f0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e7ece8; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-fg:#0f1512; --accent-soft:#1f3329;
+  --sq-light:#d9d3c0; --sq-dark:#6c8a75;
+  --good:#7fd19c; --good-bg:#1d3326; --warn:#e2b75a; --warn-bg:#352a14; --bad:#f08b80; --bad-bg:#3a1f1c;
+  --me:#2c5a44; --me-fg:#eef5f0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.5}
+#view{display:flex;flex-direction:column;gap:18px;min-width:0}
+.wrap{max-width:760px;margin:0 auto;padding-block:16px calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 28px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.strip{display:flex;height:6px;border-radius:2px;overflow:hidden;width:96px}
+.strip i{flex:1;background:var(--sq-light)}.strip i:nth-child(even){background:var(--sq-dark)}
+.brand b{font-family:var(--f-display);font-weight:800;font-size:1.15rem;line-height:1.2}
+.sync{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 10px;cursor:pointer;font-family:var(--f-body);white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync.ok i{background:var(--good)}.sync.busy i{background:var(--warn)}.sync.err i{background:var(--bad)}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(1.5rem,6vw,2rem);line-height:1.15;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:600;font-size:1.15rem;margin:0;display:flex;align-items:baseline;gap:10px;text-wrap:balance}
+h2 small,.eyebrow{font:500 .72rem var(--f-mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+p{margin:0}
+.muted{color:var(--muted)}
+.nota{font-family:var(--f-mono);font-size:.9em}
+section{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.hero{background:var(--accent-soft);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--f-display);font-size:1.5rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:.8rem;color:var(--muted)}
+.steps{display:flex;flex-direction:column;gap:8px}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.step.done{opacity:.72}
+.step .t{font-weight:700}
+.step .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ck{appearance:none;-webkit-appearance:none;width:24px;height:24px;border:2px solid var(--accent);border-radius:6px;margin:2px 0 0;display:grid;place-items:center;cursor:pointer;background:var(--surface)}
+.ck:checked{background:var(--accent)}
+.ck:checked::after{content:"";width:6px;height:11px;border:solid var(--accent-fg);border-width:0 3px 3px 0;transform:translateY(-1px) rotate(45deg)}
+.ck:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{font:600 .95rem var(--f-body);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg);text-decoration:none;display:inline-flex;align-items:center;gap:6px;line-height:1.2}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.s{padding:6px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,.chip:focus-visible,a:focus-visible,nav button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 .88rem var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:6px 13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+a.item{color:inherit;text-decoration:none}
+a.item:hover{border-color:var(--accent)}
+.item h3{margin:0;font-size:1.02rem;line-height:1.3}
+.item p{color:var(--muted);font-size:.93rem}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:2px}
+.tag{font:500 .7rem var(--f-mono);padding:2px 8px;border-radius:4px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.tag.w{background:#fbfaf6;color:#2a2a2a;border-color:#cfcabc}
+.tag.s{background:#2a2a2a;color:#f3f1ea;border-color:#6b6b6b}
+.tag.new{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.tag.wk{border-color:var(--accent);color:var(--accent)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);transition:width .3s}
+details.week{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.week[open]{border-color:var(--accent)}
+details.week summary{list-style:none;cursor:pointer;padding:12px 14px;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center}
+details.week summary::-webkit-details-marker{display:none}
+.wn{font-family:var(--f-display);font-weight:800;font-size:1.05rem;width:40px;height:40px;border-radius:8px;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line)}
+.week.cur .wn{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.wbody{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.task{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start}
+.task label{cursor:pointer}
+.task.done label{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.weak{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.count{font:500 .8rem var(--f-mono);color:var(--bad);background:var(--bad-bg);border-radius:999px;padding:2px 9px;white-space:nowrap}
+/* Brett */
+.trainer-box{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:700px){.trainer-box{grid-template-columns:minmax(0,360px) minmax(0,1fr);align-items:start}}
+.board{position:relative;width:100%;max-width:420px;aspect-ratio:1/1;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 0 0 2px var(--sq-dark),0 6px 18px rgba(0,0,0,.15);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.sq{position:absolute;width:12.5%;height:12.5%;border:0;margin:0;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none;border-radius:0;-webkit-tap-highlight-color:transparent}
+.sq.l{background:var(--sq-light)}.sq.d{background:var(--sq-dark)}
+.sq.hl::before,.sq.sel::before,.sq.ok::before,.sq.no::before{content:"";position:absolute;inset:0}
+.sq.hl::before{background:var(--sq-hl)}.sq.sel::before{background:var(--sq-sel)}
+.sq.ok::before{background:rgba(47,125,74,.6)}.sq.no::before{background:rgba(176,57,47,.55)}
+.sq:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;z-index:3}
+.dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30%;height:30%;border-radius:50%;background:rgba(20,40,30,.35);z-index:2}
+.dot.cap{width:86%;height:86%;background:transparent;border:4px solid rgba(20,40,30,.35)}
+.pc{position:absolute;inset:0;z-index:1;display:grid;place-items:center;font-family:var(--f-piece);font-size:var(--pc,36px);line-height:1;pointer-events:none}
+.pc span{grid-area:1/1}
+.pc.w .f{color:#fbfaf6}.pc.w .o{color:#1b1f1c}.pc.b .f{color:#1b1f1c}.pc.b .o{color:#1b1f1c}
+.coord{position:absolute;font-family:var(--f-mono);font-size:10px;line-height:1;z-index:1;pointer-events:none}
+.coord.r{top:3px;left:3px}.coord.f{bottom:3px;right:4px}
+.sq.l .coord{color:var(--sq-dark)}.sq.d .coord{color:var(--sq-light)}
+.ask{font-size:1.08rem;font-weight:700;text-wrap:balance}
+.moves{font-family:var(--f-mono);font-size:.85rem;color:var(--muted);overflow-wrap:anywhere}
+.turn{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted)}
+.turn i{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fg)}
+.fb{border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.fb b{font-size:1rem}
+.fb.good{background:var(--good-bg)}.fb.good b{color:var(--good)}
+.fb.warn{background:var(--warn-bg)}.fb.warn b{color:var(--warn)}
+.fb.bad{background:var(--bad-bg)}.fb.bad b{color:var(--bad)}
+.fb.info{background:var(--surface);border:1px dashed var(--line);color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* Chat */
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;font:600 .92rem var(--f-body);border:0;border-radius:7px;padding:8px;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.chat{display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:10px 13px;border-radius:12px;overflow-wrap:anywhere;min-width:0}
+.msg.u{align-self:flex-end;background:var(--me);color:var(--me-fg);border-bottom-right-radius:4px;white-space:pre-wrap}
+.msg.a{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.a p+p,.msg.a ul{margin-top:6px}
+.msg.a ul{margin-bottom:0;padding-left:20px}
+.msg .tools{display:flex;gap:6px;margin-top:6px}
+.compose{position:sticky;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 8px);display:flex;gap:8px;align-items:flex-end;background:var(--bg);padding-top:6px}
+textarea{font:inherit;width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface);color:var(--fg);resize:vertical}
+textarea:focus-visible,input[type=text]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=text]{font:inherit;width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--surface);color:var(--fg)}
+.compose textarea{min-height:46px;max-height:160px;resize:none}
+.small{font-size:.85rem}
+.ana h3{margin:0;font-family:var(--f-display);font-size:1rem}
+.mist{border-left:3px solid var(--bad);padding-left:10px;display:flex;flex-direction:column;gap:4px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h)}
+nav.tabs button{border:0;background:transparent;color:var(--muted);font:600 .72rem var(--f-body);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:#fff;font:700 .65rem var(--f-body);display:grid;place-items:center;padding:0 4px}
+.gamecard{text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
+.gamecard:hover{border-color:var(--accent)}
+.res{font:700 .75rem var(--f-body);padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.res.win{background:var(--good-bg);color:var(--good);border-color:transparent}.res.loss{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.movelist{font-family:var(--f-mono);font-size:.88rem;line-height:1.9;overflow-wrap:anywhere}
+.mn{color:var(--muted)}
+.pair{white-space:nowrap;margin-right:6px}
+.mv{font:inherit;border:0;background:transparent;color:var(--fg);padding:1px 4px;border-radius:4px;cursor:pointer}
+.mv.on{background:var(--accent);color:var(--accent-fg)}
+.empty{color:var(--muted);font-size:.95rem;padding:6px 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 14px);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:.9rem;z-index:30;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
+/* Frage an den Trainer */
+.fr-spalte{display:flex;flex-direction:column;gap:12px;min-width:0}
+.fr-liste{display:flex;flex-direction:column;gap:12px;min-width:0;scroll-margin:12px 0 84px}
+.fr-karte{gap:10px}
+.fr-kopf{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.fr-item{border-top:1px solid var(--line);padding-top:10px;min-width:0}
+.fr-karte>.fr-item:first-of-type{border-top:0;padding-top:0}
+.fr-merk{font-size:.95rem;overflow-wrap:anywhere}
+.fr-item summary,.fr-alt summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}
+.fr-item summary:focus-visible,.fr-alt summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.fr-wo{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--muted);margin-top:4px}
+.fr-brett{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));width:168px;margin-top:8px;border-radius:3px;overflow:hidden;box-shadow:0 0 0 1px var(--sq-dark);font-family:var(--f-piece);line-height:1;user-select:none;-webkit-user-select:none}
+.fr-brett i{position:relative;display:grid;place-items:center;aspect-ratio:1/1;min-width:0;overflow:hidden;font-style:normal;font-size:18px}
+.fr-brett i.l{background:var(--sq-light)}.fr-brett i.d{background:var(--sq-dark)}
+.fr-brett i.m::before{content:"";position:absolute;inset:0;background:var(--sq-hl)}
+.fr-brett span{grid-area:1/1;position:relative}
+.fr-w{color:#fbfaf6}.fr-s,.fr-o{color:#1b1f1c}
+.fr-a{display:flex;flex-direction:column;gap:6px;margin-top:6px;font-size:.97rem;line-height:1.5;overflow-wrap:anywhere}
+.fr-a p{margin:0}
+.fr-a ul{margin:0;padding-left:20px}
+.fr-sf{margin:6px 0 0;font-family:var(--f-mono);font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
+.fr-still{margin:0;color:var(--muted);font-size:.9rem}
+.fr-tun{display:flex;gap:12px}
+.fr-tun:empty{display:none}
+.fr-link{font:inherit;font-size:.88rem;font-weight:600;color:var(--accent);background:none;border:0;padding:6px 0;cursor:pointer;text-decoration:underline}
+.fr-link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.fr-leiste{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.fr-zeile{display:flex;gap:8px;align-items:stretch}
+.fr-zeile input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.fr-zeile input::placeholder{color:var(--muted);opacity:1}
+.fr-zeile input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.fr-go{font:inherit;font-weight:600;font-size:.95rem;white-space:nowrap;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg)}
+.fr-go:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.fr-hinweis{margin:0;padding:0 3px;font-size:.85rem;font-weight:600;color:var(--good)}
+.fr-leiste{bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 8px)}
+/* Fehler: Offen, Abgeschlossen, Übersicht */
+.seg.drei button{flex:1 1 auto;min-width:0;padding:8px 5px;white-space:nowrap}
+.seg small{font:500 .72rem var(--f-mono);opacity:.85}
+.fx-gruppe{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.fx-gruppe[open]{border-color:var(--accent)}
+.fx-gruppe>summary{list-style:none;cursor:pointer;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto 12px;gap:10px;align-items:center;font-weight:700}
+.fx-gruppe>summary::-webkit-details-marker{display:none}
+.fx-gruppe>summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:10px}
+.fx-gruppe>summary::after{content:"";width:8px;height:8px;border:solid var(--muted);border-width:0 2px 2px 0;transform:translateY(-2px) rotate(45deg)}
+.fx-gruppe[open]>summary::after{transform:translateY(2px) rotate(225deg)}
+.fx-frage{font-weight:600;overflow-wrap:anywhere}
+.fx-zahl{font:500 .78rem var(--f-mono);color:var(--muted);white-space:nowrap}
+.fx-body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.fx-item{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.fx-item p{overflow-wrap:anywhere}
+.fx-filter{gap:10px}
+.fx-wahl{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.4fr);gap:8px}
+@media (max-width:520px){.fx-wahl{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.fx-wahl label:first-child{grid-column:1/-1}}
+.fx-wahl label{display:flex;flex-direction:column;gap:3px;font-size:.8rem;color:var(--muted);min-width:0}
+.fx-wahl select{font:inherit;font-size:.95rem;width:100%;min-width:0;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+.fx-wahl select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.fx-stellung{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start}
+@media (max-width:420px){.fx-stellung{grid-template-columns:minmax(0,1fr)}}
+.fx-stellung .fr-brett{margin-top:0}
+.fx-stellung>div:last-child{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fx-balken{gap:6px}
+.fx-balken .bar{height:8px;border-radius:4px}
+.fx-kopf{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline}
+.fx-kopf b:last-child{font:500 .9rem var(--f-mono);font-variant-numeric:tabular-nums}
+.fx-leer{background:var(--accent-soft);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px}
+/* Partieverlauf: Nulllinie in der Mitte, nach oben helle Fläche für Weiß, nach unten dunkle für Schwarz. In beiden Designs gleich */
+:root{--vl-grund:#6f7d74;--vl-w:#f4f0e6;--vl-s:#1f2321;--vl-m:#ffd54a;--vl-rest:rgba(255,255,255,.16);--vl-pz:#c8352a;--vl-fl:#e8940f}
+.vl{gap:8px;width:100%;max-width:420px;margin:10px auto 0}
+.vl-kopf{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.vl-feld{position:relative;height:120px;border-radius:6px;overflow:hidden;background:var(--vl-grund);box-shadow:0 0 0 1px var(--line);cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.vl-feld svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.vl-feld>*{pointer-events:none}
+.vl-lab{position:absolute;left:6px;font:500 .62rem var(--f-mono);letter-spacing:.04em}
+.vl-lab{color:#fff}.vl-lab.w{top:5px}.vl-lab.s{bottom:5px}
+.vl-zeiger{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--vl-m);box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.vl-knopf{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--vl-m);box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(0,0,0,.5)}
+.vl-dot{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--vl-fl);box-shadow:0 0 0 1.5px #fff}
+.vl-dot.pz{width:12px;height:12px;margin:-6px 0 0 -6px;background:var(--vl-pz)}
+.vl-tip{position:absolute;top:5px;font:500 .74rem var(--f-mono);background:var(--fg);color:var(--bg);padding:3px 7px;border-radius:5px;white-space:nowrap}
+.vl-satz{font-size:.92rem;overflow-wrap:anywhere}
+.vl-marke{font-weight:700}.vl-marke.pz{color:var(--bad)}.vl-marke.fl{color:var(--warn)}
+.vl-zahlen{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.vl-z2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 6px}
+.vl-z2 .eyebrow{grid-column:1/-1;font-size:.64rem}
+.vl-z2>div{display:flex;flex-direction:column;min-width:0}
+.vl-zahlen b{font-family:var(--f-display);font-size:1.1rem;line-height:1.2;font-variant-numeric:tabular-nums}
+.vl-zahlen span{font-size:.74rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+.vl-zahlen span i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--vl-fl)}
+.vl-zahlen span i.pz{background:var(--vl-pz)}
+.mv.pz::after{content:"??";color:var(--bad);font-weight:700}
+.mv.fl::after{content:"?";color:var(--warn);font-weight:700}
+.mv.on::after{color:inherit}
+/* Zugang zum Server */
+.zg{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
+.zg-box{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:18px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+/* Nachricht von Claude */
+.nachricht{border-color:var(--accent)}
+.nachricht p+p,.nachricht ul{margin-top:6px}
+.nachricht ul{margin-bottom:0;padding-left:20px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>Schach-Training</b></div>
+    <button class="sync" id="sync" type="button" title="Neue Daten vom Server holen (lange drücken: Zugangscode)"><i></i><span id="sync-t">Daten laden …</span></button>
+  </header>
+  <main id="view"></main>
+</div>
+
+<nav class="tabs" aria-label="Bereiche"><div class="in">
+  <button type="button" data-v="heute"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Heute</button>
+  <button type="button" data-v="bibliothek"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="16" rx="1"/><rect x="14" y="4" width="6" height="16" rx="1"/></svg>Übungen<span class="badge" id="b-new" hidden></span></button>
+  <button type="button" data-v="plan"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Plan</button>
+  <button type="button" data-v="fehler"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>Fehler</button>
+  <button type="button" data-v="trainer"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H10l-5 4z"/></svg>Trainer</button>
+</div></nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+const FALLBACK = {"version": 11, "stand": "2026-11-04", "hinweis": "Startdaten fuer Justins Schach-App. Die echten Daten liegen auf dem Server, Claude aendert sie ueber den Connector.", "spieler": {"name": "Justin", "chesscom": "JustWinnnnnnnn", "rating": "ca. 500 (10 Minuten)", "ziel": 2000}, "planStart": "2026-10-28", "repertoire": ["Weiß 1.e4: gegen 1…e5 Schottisch (2.Sf3 Sc6 3.d4), gegen 1…c5 Alapin 2.c3, gegen Französisch/Caro-Kann Vorstoß 3.e5, gegen Skandinavisch 3.Sc3, gegen Elefantengambit 2…d5 3.exd5", "Schwarz gegen 1.e4: 1…e5, gegen Italienisch 3…Lc5, gegen Spanisch geschlossen 3…a6", "Schwarz gegen 1.d4: Nimzo-Indisch (1…Sf6 2.c4 e6 3.Sc3 Lb4), gegen 3.Sf3 Bogo 3…Lb4+, gegen London …e6 …d5 …c5 …Ld6"], "wochen": [{"n": 1, "titel": "Schottisch: Hauptzüge", "ziel": "Beide Linien bis Zug 7–8 können und jeden Zug begründen", "taktik": "Gabel und Fesselung", "taktikLink": "https://lichess.org/training/fork", "endspiel": "Matt mit Dame und König", "aufgaben": ["Studie „Mein Repertoire“ anlegen: 1.e4 e5 2.Sf3 Sc6 3.d4 exd4 4.Sxd4, zu jedem Zug ein Satz warum", "Variante A: 4…Sf6 5.Sxc6 bxc6 6.e5 De7 7.De2 Sd5 8.c4, 5-mal aufbauen", "Variante B: 4…Lc5 5.Sb3 Lb6 6.a4 a6 7.Sc3, Ideen a4–a5 und Sd5 notieren", "Beide Varianten aus dem Kopf, im Eröffnungsbuch 1–2 Züge weiter", "Meisterpartie mit Variante A durchspielen, vor jedem weißen Zug raten", "Wochenende: 2–3 Partien 15+10 mit Weiß, PGN analysieren lassen"]}, {"n": 2, "titel": "Abweichungen + Alapin/Vorstoß", "ziel": "Auf jeden schwarzen ersten Zug eine Antwort haben", "taktik": "Spieß und Abzugsangriff", "taktikLink": "https://lichess.org/training/skewer", "endspiel": "Matt mit Turm und König", "aufgaben": ["4…Sxd4 5.Dxd4, 4…Dh4 5.Sc3 und 3…d6 je 3-mal aufbauen", "2…d6 (Philidor) und 2…Sf6 (Russisch), Falle 3.Sxe5 Sxe4? 4.De2 Sf6?? 5.Sc6+", "Gegen Sizilianisch: 1…c5 2.c3, 2…d5 3.exd5 Dxd5 4.d4 und 2…Sf6 3.e5 Sd5 4.d4", "Französisch und Caro-Kann mit 3.e5, Skandinavisch 2.exd5 Dxd5 3.Sc3", "Pirc/Modern und 1…Sc6, dann alle Weiß-Kapitel abdecken und raten", "Wochenende: 2–3 Partien 15+10 mit Weiß, PGN analysieren lassen"]}, {"n": 3, "titel": "Nimzo gegen 4.e3 und 4.Dc2", "ziel": "Die ersten 7 Züge sitzen, die Idee von …Lxc3 verstanden", "taktik": "Grundreihenmatt und Ablenkung", "taktikLink": "https://lichess.org/training/backRankMate", "endspiel": "Quadratregel, dann Opposition", "aufgaben": ["Nimzo 1.d4 Sf6 2.c4 e6 3.Sc3 Lb4: aufschreiben, warum Weiß nicht e4 spielen kann", "4.e3 O-O 5.Ld3 d5 6.Sf3 c5 7.O-O Sc6, 5-mal aufbauen", "4.Dc2 O-O 5.a3 Lxc3+ 6.Dxc3 b6 7.Lg5 Lb7, warum Lb7 und Se4 wichtig sind", "Beide Linien aus dem Kopf, 1–2 Züge weiter im Eröffnungsbuch", "Meisterpartie mit 4.e3, die Schwarz gewann, vor jedem schwarzen Zug raten", "Wochenende: 2–3 Partien 15+10 mit Schwarz, PGN analysieren lassen"]}, {"n": 4, "titel": "Nimzo 4.a3/4.f3, London, Tromp", "ziel": "Gegen jeden weißen d4-Aufbau einen Plan", "taktik": "Hinlenkung und Doppelangriff", "taktikLink": "https://lichess.org/training/attraction", "endspiel": "Schlüsselfelder, König und Bauer gegen König", "aufgaben": ["4.a3 Lxc3+ 5.bxc3 c5, Plan …b6, …La6, …Sc6–a5, …Tc8 gegen c4", "4.f3 d5 5.a3 Lxc3+ 6.bxc3 c5 7.cxd5 Sxd5 und 4.Sf3 O-O mit …d5, …c5", "3.Sf3 Lb4+ (Bogo) und 3.g3 d5 4.Lg2 Le7 5.Sf3 O-O (Katalanisch)", "London (…e6, …d5, …c5, …Sc6, …Ld6) und Trompowsky 2.Lg5 e6 3.e4 h6 4.Lxf6 Dxf6", "1.c4 und 1.Sf3 mit 1…Sf6 und …e6, alle Schwarz-Kapitel abdecken und raten", "Wochenende: 2–3 Partien 15+10 mit Schwarz, PGN analysieren lassen"]}, {"n": 5, "titel": "Schwarz gegen 1.e4: 1…e5", "ziel": "Gegen 1.e4 sicher bis Zug 6", "taktik": "Matt in 2 und Zwischenzug", "taktikLink": "https://lichess.org/training/mateIn2", "endspiel": "Türme hinter Freibauern", "aufgaben": ["Italienisch 3.Lc4 Lc5 4.c3 Sf6 5.d3 d6 6.O-O a6, warum …a6 und …La7", "Spanisch 3.Lb5 a6 4.La4 Sf6 5.O-O Le7 6.Te1 b5 7.Lb3 d6 8.c3 O-O", "Schottisch von Schwarz (4.Sxd4 Sf6) und Vierspringer (3.Sc3 Sf6)", "Königsgambit, Wiener Partie und Abwehr gegen das Schäfermatt", "Ganzes Repertoire durchgehen, unsichere Stellen markieren", "Wochenende: 2–3 Partien 15+10 mit Schwarz, PGN analysieren lassen"]}, {"n": 6, "titel": "Mittelspiel aus dem Schottischen", "ziel": "In Weiß-Partien nach der Eröffnung wissen, was du willst", "taktik": "Gemischt mit Denkroutine", "taktikLink": "https://lichess.org/training", "endspiel": "Philidor-Stellung", "aufgaben": ["Denkroutine aufschreiben, Stellung nach 8.c4 (Variante A): 3 Pläne für Weiß", "Meisterpartie 1 mit 6.e5: vor jedem weißen Zug raten", "Meisterpartie 2 mit 4…Lc5: wann f4–f5, wohin die Springer", "Meisterpartie 3: wann gehen die Türme auf die d- und e-Linie", "Eigene Schottisch-Partie mit dem Trainer besprechen", "Wochenende: 2–3 Partien, nach der Eröffnung bewusst einen Plan festlegen"]}, {"n": 7, "titel": "Mittelspiel aus dem Nimzo", "ziel": "In jeder Nimzo-Struktur wissen: öffnen oder geschlossen halten", "taktik": "Gemischt mit Denkroutine", "taktikLink": "https://lichess.org/training", "endspiel": "Lucena-Stellung (Brückenbau)", "aufgaben": ["Stellung nach 4.a3 Lxc3+ 5.bxc3: weiße Schwächen, deine Bauern auf dunkle Felder", "Meisterpartie 1 mit 4.a3: wann greift Schwarz c4 an", "Meisterpartie 2 mit 4.e3: Spiel nach …dxc4 und …cxd4", "Meisterpartie 3 mit 4.Dc2: wie nutzt Schwarz e4", "Eigene Nimzo-Partie mit dem Trainer besprechen", "Wochenende: 2–3 Partien mit Schwarz, Plan festlegen und prüfen"]}, {"n": 8, "titel": "Endspiele + Repertoire-Test", "ziel": "Pflicht-Endspiele sicher, Quiz mindestens 8 von 10", "taktik": "Gemischt", "taktikLink": "https://lichess.org/training", "endspiel": "20 Minuten Endspiel", "aufgaben": ["Dame gegen Bauer auf der 7. Reihe (d-Bauer gewinnen, c-Bauer oft remis)", "Läufer gegen Springer: je eine Stellung, wo jeder besser ist", "Ungleichfarbige Läufer: mit Mehrbauer remis halten", "Pflicht-Test: die ersten acht Endspiele gegen den Computer", "Repertoire-Test: Quiz zu allen Eröffnungen beim Trainer", "Wochenende: je eine Partie mit Weiß und Schwarz, PGN analysieren lassen"]}], "artifacts": [{"id": "plan", "gruppe": "plan", "titel": "8-Wochen-Plan (Dokument)", "text": "Der komplette Plan mit allen Erklärungen zu Eröffnungen, Mittelspiel und Endspiel.", "url": "https://claude.ai/artifact/Y5g4dvJPYqdfWmL1RBV4Qd", "tags": ["W1–W8"], "datum": "2026-10-28"}, {"id": "trainer", "gruppe": "eroeffnung", "titel": "Eröffnungs-Trainer", "text": "Ganze Linien selbst ziehen, der Gegner antwortet automatisch. Schottisch, Alapin, Vorstoß, Skandinavisch, Italienisch, Spanisch, Nimzo, Bogo, London, Elefantengambit. Neu: 6 Linien gegen Caro-Kann-Abweichungen nach 3.e5 (3…Lf5 mit …c5/…Db6/…Sd7, 3…c5, 3…e6).", "url": "https://claude.ai/artifact/DZwNkRrYKSTT2bwGWHED5i", "tags": ["Weiß", "Schwarz", "34 Linien", "Caro-Kann"], "datum": "2026-11-03", "wochen": [1, 2, 3, 4, 5]}, {"id": "quiz-w1", "gruppe": "eroeffnung", "titel": "Schottisch-Quiz Woche 1", "text": "Hauptzüge nach 1.e4 e5 2.Sf3 Sc6 3.d4 am Brett.", "url": "https://claude.ai/artifact/7XbJTGwoKmauNU8wvXnzC8", "tags": ["Weiß", "12 Aufgaben"], "datum": "2026-10-29", "wochen": [1]}, {"id": "quiz-2", "gruppe": "eroeffnung", "titel": "Schottisch-Quiz 2", "text": "Woche-1-Stoff gemischt mit den Fehlern aus der Partie gegen shs0226.", "url": "https://claude.ai/artifact/Rs7dH1yPQNF6x8KvC8Aw8F", "tags": ["Weiß", "10 Aufgaben"], "datum": "2026-10-30", "wochen": [1]}, {"id": "taktik-1", "gruppe": "taktik", "titel": "Taktik-Training 1", "text": "Acht typische Muster wie Gabel, Fesselung und Grundreihe.", "url": "https://claude.ai/artifact/Fs7cRm1pErhjHPbAGzm15y", "tags": ["8 Muster"], "datum": "2026-11-02"}, {"id": "lh5", "gruppe": "taktik", "titel": "Die Lh5+ Variante", "text": "16.Lh5+ g6 17.Dd4 Schritt für Schritt durchgerechnet.", "url": "https://claude.ai/artifact/Bp7gQDwvHRHDL9xKzadK8M", "tags": ["Weiß", "Rechnen"], "datum": "2026-10-30"}, {"id": "p-jack", "gruppe": "partien", "titel": "vs JackBlackPieces", "text": "Niederlage gegen das Elefantengambit 2…d5. Richtig ist 3.exd5, dazu das Grundreihenmatt nach 13.Te1.", "url": "https://claude.ai/artifact/TpextG1EcVzKd7hjFJCtS5", "tags": ["Weiß", "Niederlage"], "datum": "2026-10-31"}, {"id": "p-xph2", "gruppe": "partien", "titel": "vs XPheresX, Partie 2", "text": "Sieg mit Matt. Wieder 3…Sf6 statt 3…Lc5, hängender e5-Bauer und ein verpasstes Matt in 3.", "url": "https://claude.ai/artifact/GCp5AiNSo5X5Vtqz6emw9n", "tags": ["Schwarz", "Sieg"], "datum": "2026-10-31"}, {"id": "p-xph1", "gruppe": "partien", "titel": "vs XPheresX, Partie 1", "text": "Sieg mit Grundreihenmatt. 3…Sf6 statt 3…Lc5 und 7…O-O ließ e5 hängen.", "url": "https://claude.ai/artifact/TydrPHjgYZuLoL4afTUBaH", "tags": ["Schwarz", "Sieg"], "datum": "2026-10-31"}, {"id": "p-shs", "gruppe": "partien", "titel": "vs shs0226", "text": "Die wichtigsten Stellungen aus deiner Schottisch-Partie als Brett-Übungen.", "url": "https://claude.ai/artifact/96tMrxxeAmEnrFGg7z6cw9", "tags": ["Weiß"], "datum": "2026-10-29"}, {"id": "uebersicht", "gruppe": "plan", "titel": "Alte Übersichtsseite", "text": "Die frühere Übersicht aller Übungen. Ab jetzt ist diese App die Übersicht.", "url": "https://claude.ai/artifact/6aTqHzWkLmefUaG4T3ncF1", "tags": ["Archiv"], "datum": "2026-11-02"}, {"id": "lichess-w", "gruppe": "eroeffnung", "titel": "Lichess-Studie Repertoire Weiß", "text": "Alle Weiß-Linien mit Erklärungen: Schottisch, Elefantengambit, Alapin, Französisch, Caro-Kann und Skandinavisch, je Untervariante ein Kapitel.", "url": "https://lichess.org/study/5hn21Waj", "tags": ["Lichess"], "datum": "2026-11-04"}, {"id": "lichess-b", "gruppe": "eroeffnung", "titel": "Lichess-Studie Repertoire Schwarz", "text": "Alle Schwarz-Linien mit Erklärungen: 1…e5 mit Italienisch und Spanisch, Nimzo-Indisch, Bogo-Indisch und London, je Untervariante ein Kapitel.", "url": "https://lichess.org/study/6kfSby55", "tags": ["Lichess"], "datum": "2026-11-04"}], "schwaechen": [{"id": "lc5", "titel": "3…Lc5 im Italiener vergessen", "text": "Gegen 3.Lc4 spielst du 3…Lc5, nicht 3…Sf6.", "anzahl": 2}, {"id": "zaehlen", "titel": "Angreifer und Verteidiger nicht gezählt", "text": "e5 nach Te1 hängen lassen, e4 mit Sc3 nur einmal gedeckt.", "anzahl": 4}, {"id": "schach", "titel": "Schachs und Matt nicht zuerst geprüft", "text": "Matt in 3 verpasst, Grundreihenmatt übersehen, Dxe4+ zugelassen. Matt in 1 (De1#) verpasst vs sumithrakumar. Matt in 2 (Ta5+ Da4#) verpasst vs sa2te2.", "anzahl": 6}, {"id": "fessel", "titel": "Fesselung und Röntgen übersehen", "text": "Figur zieht weg und die Dame dahinter hängt.", "anzahl": 1}, {"id": "start", "titel": "Partiestart: Repertoire verlassen", "text": "Gegen Überraschungen wie 2…d5 oder 1…d5 nicht die bekannte Antwort gespielt (2.d4 statt 2.exd5). Gegen London …Sc6 statt …c5.", "anzahl": 4}, {"id": "nehmen", "titel": "Starke Schlag- und Fangzüge verpasst", "text": "7.Dxg7 und 8.b4 (Läuferfang) vs Almiraz1 nicht gesehen. Vor jedem Zug alle Schlagzüge prüfen.", "anzahl": 2}], "uebungen": [{"id": "u-lc5", "schwaeche": "lc5", "quelle": "vs XPheresX", "line": ["e4", "e5", "Nf3", "Nc6", "Bc4"], "frage": "Italienisch. Was ist dein Repertoirezug?", "antwort": ["Bc5"], "falsch": {"Nf6": "Das hast du zweimal gespielt. Es ist spielbar, aber nicht dein Repertoire. Dein Plan ist 3…Lc5 mit …d6 und …a6."}, "warum": "3…Lc5: Der Läufer stellt sich aktiv auf die Diagonale nach f2. Danach 4.c3 Sf6 5.d3 d6 6.O-O a6.", "seite": "b"}, {"id": "u-te1", "schwaeche": "zaehlen", "quelle": "Spanisch", "line": ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "Ba4", "Nf6", "O-O", "Be7", "Re1"], "frage": "Weiß hat Te1 gespielt. Was droht, und was spielst du?", "antwort": ["b5"], "ok": {"d6": "Deckt e5 auch, aber dein Repertoirezug ist 6…b5 und 7…d6."}, "falsch": {"O-O": "Genau dein Muster aus der Partie: Nach 7.Lxc6 dxc6 8.Sxe5 ist e5 weg, und du musst mit …Dd4 tricksen, um ihn zurückzuholen."}, "warum": "Te1 droht Lxc6 und danach Sxe5. Mit 6…b5 jagst du den Läufer weg, dann 7.Lb3 d6 und e5 ist gedeckt.", "seite": "b"}, {"id": "u-eleph", "schwaeche": "start", "quelle": "vs JackBlackPieces", "line": ["e4", "e5", "Nf3", "d5"], "frage": "Elefantengambit. Was ist die beste Antwort?", "antwort": ["exd5"], "falsch": {"Nxe5": "Das hast du gespielt. Es geht, aber nach 3.exd5 steht Weiß einfacher besser."}, "warum": "3.exd5 nimmt den Bauern. Auf 3…e4 kommt 4.De2, auf 3…Dxd5 4.Sc3 mit Tempo gegen die Dame.", "seite": "w"}, {"id": "u-eleph2", "schwaeche": "start", "quelle": "Elefantengambit", "line": ["e4", "e5", "Nf3", "d5", "exd5", "e4"], "frage": "Schwarz greift deinen Springer mit e4 an. Was spielst du?", "antwort": ["Qe2"], "warum": "4.De2 fesselt den e4-Bauern an den König e8 und greift ihn an. Der Springer muss nicht weg.", "seite": "w"}, {"id": "u-ba6", "schwaeche": "fessel", "quelle": "Schottisch Variante A", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nf6", "Nxc6", "bxc6", "e5", "Qe7", "Qe2", "Nd5", "c4"], "frage": "Du spielst Weiß, aber kenn die Idee von Schwarz: Mit welchem Läuferzug fesselt Schwarz deinen c4-Bauern?", "antwort": ["Ba6"], "warum": "8…La6: Der Läufer greift c4 an, dahinter steht die De2. Als Weiß spielst du deshalb 9.b3.", "seite": "w"}, {"id": "u-dxe4", "schwaeche": "schach", "quelle": "vs shs0226", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Bb4+", "c3", "Bc5", "Nb3", "Qf6", "Nxc5", "d6", "Nb3", "Qe5", "c4"], "frage": "Nach deinem 9.c4 ist Schwarz am Zug. Welcher Zug gewinnt deinen Bauern mit Schach? Zieh für Schwarz.", "antwort": ["Qxe4+"], "warum": "9…Dxe4+ schlägt e4 mit Schach auf der e-Linie. Merksatz: Steht die Dame auf der e-Linie, immer Schachs prüfen.", "seite": "w"}, {"id": "u-ld3", "schwaeche": "zaehlen", "quelle": "vs shs0226", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Bb4+", "c3", "Bc5", "Nb3", "Qf6", "Nxc5", "d6", "Nb3", "Qe5"], "frage": "Die De5 greift e4 an. Wie deckst du ihn und entwickelst dabei?", "antwort": ["Bd3"], "falsch": {"c4": "Das hast du gespielt. Danach geht 9…Dxe4+ mit Schach."}, "warum": "9.Ld3 deckt e4 und bringt eine Figur ins Spiel.", "seite": "w"}, {"id": "u-f3", "schwaeche": "zaehlen", "quelle": "vs shs0226", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Bb4+", "c3", "Bc5", "Nb3", "Qf6", "Nxc5", "d6", "Nb3", "Qe5", "c4", "Nf6"], "frage": "De5 und Sf6 greifen e4 an. Wie hältst du ihn sicher?", "antwort": ["f3"], "falsch": {"Bd3": "Zähle nach: Nach 10…Sxe4 11.Lxe4 Dxe4+ ist der Bauer trotzdem weg.", "Nc3": "Das hast du gespielt. Zwei Angreifer, ein Verteidiger: 10…Sxe4 gewinnt den Bauern."}, "warum": "Zähle: zwei Angreifer auf e4. 10.f3 deckt mit einem Bauern, Schlagen kostet Schwarz dann eine Figur.", "seite": "w"}, {"id": "u-grund", "schwaeche": "schach", "quelle": "Grundreihe", "fen": "6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1", "frage": "Weiß am Zug. Prüfe zuerst alle Schachs.", "antwort": ["Rd8#"], "warum": "Td8 ist Matt: Der König kann nicht weg, weil f7, g7 und h7 ihm die Fluchtfelder nehmen. Darum vor jedem Zug die eigene Grundreihe prüfen.", "seite": "w"}, {"id": "u-grund2", "schwaeche": "schach", "quelle": "Grundreihe wie vs JackBlackPieces", "fen": "3r2k1/pp3ppp/8/2N5/8/8/PP3PPP/6K1 w - - 0 1", "frage": "Weiß am Zug. Was droht Schwarz, und wie verhinderst du es?", "antwort": ["h3", "g3", "h4", "g4", "f3", "f4", "Kf1"], "ok": {"Nd3": "Hält im Moment, weil Se1 blocken kann. Ein Luftloch ist aber dauerhaft sicher."}, "falsch": {"Nd7": "Blockt zwar die d-Linie, aber nach …Txd7 ist der Springer weg."}, "warum": "Schwarz droht Td1 matt. Ein Luftloch wie h3 oder g3 gibt deinem König ein Fluchtfeld, dann ist Td1+ kein Matt mehr.", "seite": "w"}, {"id": "u-skan-start", "schwaeche": "start", "quelle": "vs JacopoCa81", "line": ["e4", "d5"], "frage": "Schwarz spielt 1…d5 und greift e4 an. Was ist dein Repertoirezug?", "antwort": ["exd5"], "falsch": {"d4": "Dein Partiezug. Nach 2…dxe4 ist dein Bauer weg. Das ist ein Gambit (Blackmar-Diemer), nicht dein Repertoire.", "e5": "Vorstoß ist gegen 1…d5 nicht dein Plan. Nimm einfach den Bauern."}, "warum": "2.exd5 Dxd5 3.Sc3: Du nimmst den Bauern, der dich angreift, und jagst die Dame danach mit Tempo.", "seite": "w"}, {"id": "u-skan-dame", "schwaeche": "zaehlen", "quelle": "vs JacopoCa81", "line": ["e4", "d5", "d4", "dxe4", "Nc3", "Qxd4"], "frage": "Schwarz hat 3…Dxd4 gespielt. Was hast du in der Partie übersehen?", "antwort": ["Qxd4"], "ok": {"Bb5+": "Gewinnt auch die Dame (3…Dd7 4.Lxd7+), aber 4.Dxd4 ist einfacher."}, "falsch": {"Be3": "Dein Partiezug. Danach kann Schwarz die Damen tauschen und hat einen Bauern mehr."}, "warum": "Die schwarze Dame auf d4 ist von keiner Figur gedeckt. Deine Dame d1 sieht sie über die offene d-Linie. Erste Frage bei jedem Zug: Hat der Gegner etwas ungedeckt hingestellt?", "seite": "w"}, {"id": "u-skan-b2", "schwaeche": "zaehlen", "quelle": "vs JacopoCa81", "line": ["e4", "d5", "d4", "dxe4", "Nc3", "Qxd4", "Be3", "Qb4", "a3", "Qxb2"], "frage": "Die schwarze Dame hat b2 geschlagen und steht tief in deinem Lager. Wie bestrafst du das?", "antwort": ["Nd5", "Nb5"], "ok": {"Bb5+": "Dein Partiezug, gar nicht schlecht. Aber mit dem Springer ist es viel stärker."}, "warum": "6.Sd5! droht Sxc7+ mit Gabel auf König und Ta8. Nach 6…De5 7.Lf4 hat die Dame kein Feld mehr und geht verloren. Eine Dame, die Bauern frisst, kann man oft jagen oder fangen.", "seite": "w"}, {"id": "u-skan-dd3", "schwaeche": "schach", "quelle": "vs JacopoCa81", "line": ["e4", "d5", "d4", "dxe4", "Nc3", "Qxd4", "Be3", "Qb4", "a3", "Qxb2", "Bb5+", "c6"], "frage": "Die Dame b2 schaut auf Sc3 und Ta1, der Lb5 wird angegriffen. Was spielst du?", "antwort": ["Nge2"], "ok": {"Nd5": "Spielbar. 7.Sge2 ist sicherer, weil es c3 deckt.", "Bd4": "Spielbar, aber 7.Sge2 deckt den Springer c3 und macht alles sicher."}, "falsch": {"Qd3": "Dein Partiezug: Der Bauer e4 schlägt die Dame (…exd3), und …Dxa1+ wäre auch noch Schach. Nie die Dame auf ein Feld, das ein Bauer angreift.", "Qd2": "Dann kommt …Dxa1+ mit Schach. Erst Schachs des Gegners prüfen!"}, "warum": "7.Sge2 deckt den Sc3 ein zweites Mal. Nimmt Schwarz 7…cxb5, kommt 8.Sd5 mit der Drohung Sc7+, und die schwarze Dame steht weit weg vom Geschehen.", "seite": "w"}, {"id": "u-prat-e5", "schwaeche": "start", "quelle": "vs Pratyax_3008", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nxd4", "Qxd4", "Nf6"], "frage": "Schwarz hat 4…Sxd4 und 5…Sf6 gespielt. Deine Dame steht zentral auf d4. Was ist am stärksten?", "antwort": ["e5"], "ok": {"Nc3": "Solide Entwicklung, aber 6.e5 ist stärker: Der Springer f6 muss sofort wieder weg."}, "falsch": {"Bc4": "Entwickelt, aber Schwarz hat Ruhe. 6.e5 vertreibt den Springer mit Tempo und gewinnt Raum."}, "warum": "6.e5 (dein Partiezug, Engine-Bestzug) gewinnt Raum und Tempo: Der Sf6 hat kein gutes Feld. 5…Df6 wäre für Schwarz besser gewesen.", "seite": "w"}, {"id": "u-prat-lc4", "schwaeche": "schach", "quelle": "vs Pratyax_3008", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nxd4", "Qxd4", "Nf6", "e5", "c5", "Qf4", "Nd5", "Qf3", "Ne7"], "frage": "Schwarz hat 8…Se7 gespielt und damit seinen Läufer f8 eingesperrt. Welcher Zug droht sofort Matt?", "antwort": ["Bc4"], "ok": {"Bf4": "Guter Entwicklungszug, aber 9.Lc4 ist viel stärker: Es droht Dxf7#."}, "falsch": {"Qxf7+": "Zu früh: Kxf7, und die Dame ist weg. Erst den Läufer auf c4 als Helfer holen."}, "warum": "9.Lc4 (dein Partiezug) droht Dxf7#: Der König e8 hat kein Fluchtfeld, weil Dd8, Lf8, Se7 und d7 ihn einmauern. Merke: Steht f7 nur vom König gedeckt, Dame + Läufer auf f7 richten.", "seite": "w"}, {"id": "u-prat-matt", "schwaeche": "schach", "quelle": "vs Pratyax_3008", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nxd4", "Qxd4", "Nf6", "e5", "c5", "Qf4", "Nd5", "Qf3", "Ne7", "Bc4", "f6", "exf6", "gxf6", "Qxf6", "Rg8"], "frage": "Schwarz hat 11…Tg8 gespielt. Finde den schnellsten Gewinn.", "antwort": ["Qf7#", "Bf7#"], "ok": {}, "falsch": {"Bxg8": "Gewinnt einen Turm, aber es gibt Matt in 1. Immer zuerst Schachs prüfen!", "Qxe7+": "Die Dame wird einfach mit …Lxe7 geschlagen. Es gibt Matt in 1."}, "warum": "12.Df7# (dein Partiezug) oder 12.Lf7#: Der König ist eingemauert. Besser für Schwarz wäre 11…d5 gewesen, dann 12.Dxh8 mit Mehrturm für dich.", "seite": "w"}, {"id": "u-sumi-f7", "schwaeche": "start", "quelle": "vs sumithrakumar", "line": ["e4", "e5", "Qf3", "Nc6", "Bc4"], "frage": "Weiß spielt 2.Df3 und 3.Lc4. Was droht, und wie verteidigst du?", "antwort": ["Nf6"], "ok": {"Qf6": "Geht auch (Engine-Favorit): Damen gegenüber, f7 gedeckt.", "Qe7": "Deckt f7, aber die Dame stellt den Lf8 zu. 3…Sf6 ist natürlicher.", "Nh6": "Deckt f7, aber der Springer steht am Rand. Besser 3…Sf6.", "f5": "Blockiert die Dame, ist aber sehr riskant."}, "falsch": {"Bc5": "4.Dxf7# – Matt! Lc5 ist hier falsch, weil die Dame schon auf f3 steht.", "Nd4": "Greift die Dame an, aber 4.Dxf7# ist Matt.", "d6": "4.Dxf7# – Matt.", "Be7": "4.Dxf7# – Matt."}, "warum": "Dame f3 + Läufer c4 zielen auf f7: es droht Dxf7#. 3…Sf6 (dein Partiezug) stellt den Springer dazwischen und entwickelt. Merke: Gegen frühe Dame immer zuerst f7 prüfen, erst dann dein Repertoire-Zug.", "seite": "b"}, {"id": "u-sumi-lxh3", "schwaeche": "zaehlen", "quelle": "vs sumithrakumar", "line": ["e4", "e5", "Qf3", "Nc6", "Bc4", "Nf6", "d3", "d6", "Nh3", "Bg4", "Qe3", "d5", "Bb3", "d4", "Qd2", "Bb4", "c3", "dxc3", "bxc3", "Ba5", "f3"], "frage": "Weiß hat 11.f3 gespielt und greift deinen Lg4 an. Was ist der beste Zug?", "antwort": ["Bxh3"], "ok": {}, "falsch": {"Be6": "Dein Partiezug: 12.Lxe6 fxe6, und dein großer Vorteil (+2) ist weg.", "Bh5": "Der Läufer steht passiv, Weiß spielt Sa3–c4. Vorteil weg.", "Bd7": "Rückzug, ausgeglichen. Es gibt Besseres.", "Bc8": "Rückzug, ausgeglichen. Es gibt Besseres."}, "warum": "11…Lxh3! 12.gxh3: Der Läufer muss sowieso weg, also tauscht er sich gegen den Springer, den nur g2 deckt. Weiß hat dann Doppelbauern h2/h3, einen offenen König und d3 hängt nach …Dd7. Merke: Angegriffene Figur? Erst schauen, ob sie etwas Nützliches schlagen kann, bevor du zurückziehst.", "seite": "b"}, {"id": "u-sumi-gabel", "schwaeche": "schach", "quelle": "vs sumithrakumar", "line": ["e4", "e5", "Qf3", "Nc6", "Bc4", "Nf6", "d3", "d6", "Nh3", "Bg4", "Qe3", "d5", "Bb3", "d4", "Qd2", "Bb4", "c3", "dxc3", "bxc3", "Ba5", "f3", "Be6", "Ng5", "Bxb3", "axb3", "h6", "Nh3", "O-O", "b4", "Bb6", "b5", "Na5", "Ba3"], "frage": "Weiß hat 17.La3 gespielt. Finde den Gewinnzug.", "antwort": ["Nb3"], "ok": {"Qd7": "Gut (+1,9), aber es gibt eine Gabel, die einen Turm gewinnt."}, "falsch": {}, "warum": "17…Sb3! (dein Partiezug, stark!) gabelt Dd2 und Ta1. Die Dame muss weg, dann Sxa1 = Qualität plus. Merke: Springer-Gabel auf Dame + Turm suchen, wenn beide ein Springerfeld voneinander entfernt stehen.", "seite": "b"}, {"id": "u-sumi-matt", "schwaeche": "schach", "quelle": "vs sumithrakumar", "line": ["e4", "e5", "Qf3", "Nc6", "Bc4", "Nf6", "d3", "d6", "Nh3", "Bg4", "Qe3", "d5", "Bb3", "d4", "Qd2", "Bb4", "c3", "dxc3", "bxc3", "Ba5", "f3", "Be6", "Ng5", "Bxb3", "axb3", "h6", "Nh3", "O-O", "b4", "Bb6", "b5", "Na5", "Ba3", "Nb3", "Qb2", "Nxa1", "Qxa1", "Qxd3", "Bc1", "Rad8", "Bd2", "Qc2", "Rf1", "Rxd2", "Nxd2", "Rd8", "Rf2", "Bxf2+", "Nxf2", "Qxd2+", "Kf1", "c6", "bxc6", "bxc6", "Qxa7", "Qc1+", "Ke2", "Rd2+", "Ke3"], "frage": "Weiß hat 30.Ke3 gespielt. Matt in 1!", "antwort": ["Qe1#"], "ok": {}, "falsch": {"Rd7+": "Dein Partiezug: Schach, aber kein Matt. Du hast Matt in 1 verpasst und erst im 34. Zug mattgesetzt.", "Rd3+": "Kein Matt, der König entkommt. Es gibt Matt in 1."}, "warum": "30…De1#: Der König hat kein Feld mehr. d3 und d4 deckt dein Td2, f4 der Bauer e5, e2 und d2 die Dame. f2, f3 und e4 sind von eigenen Figuren besetzt. Auch 31…Txa7 verpasste wieder Td2+ nebst De1#. Merke: Bevor du Material nimmst, alle Schachs prüfen. Gibt es Matt?", "seite": "b"}, {"id": "u-almi-g7", "schwaeche": "nehmen", "quelle": "vs Almiraz1", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nxd4", "Qxd4", "b6", "Nc3", "Bc5"], "frage": "Schwarz greift mit 6…Lc5 deine Dame an. Wohin mit ihr? Finde den stärksten Zug.", "antwort": ["Qxg7"], "ok": {"Qe5+": "Gut (+1,4): Schach und Gabel-Idee, aber es geht mehr."}, "falsch": {"Qd3": "Dein Partiezug (+0,9). Sicher, aber du lässt einen Gratis-Bauern mit Angriff liegen.", "Qc4": "Nur +0,5. Die Dame steht dort dem Lc5 gegenüber und nimmt nichts."}, "warum": "7.Dxg7! nimmt mit Tempo: Die Dame greift Th8 an. Nach 7…Df6 8.Dxf6 Sxf6 bist du einen Bauern vorn, Schwarz hat eine kaputte Königsseite (+2,7). Merke: Wird deine Dame angegriffen, zuerst prüfen, ob sie beim Wegziehen etwas schlagen kann.", "seite": "w"}, {"id": "u-almi-b4", "schwaeche": "nehmen", "quelle": "vs Almiraz1", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nxd4", "Qxd4", "b6", "Nc3", "Bc5", "Qd3", "d6"], "frage": "Der Lc5 steht wackelig. Finde den Zug, der ihn fast fängt.", "antwort": ["b4"], "ok": {}, "falsch": {"Qf3": "Dein Partiezug (+0,7). Ok, aber du verpasst eine Figurenfalle.", "Qg3": "Gut (+1,4), aber nicht das Stärkste."}, "warum": "8.b4! (+3,4): Der Läufer hat kein gutes Feld. 8…Lxb4 9.Db5+ gabelt König und Lb4. 8…Ld4 9.Dxd4. Er muss sich für einen Bauern opfern (8…Lxf2+ oder 8…La6 9.Dxa6 Lxf2+). Merke: Ein Läufer vor eigenen Bauern (b6, d6) hat wenig Rückzugsfelder, da einen Bauern draufziehen.", "seite": "w"}, {"id": "u-almi-lxf6", "schwaeche": "zaehlen", "quelle": "vs Almiraz1", "line": ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4", "Nxd4", "Qxd4", "b6", "Nc3", "Bc5", "Qd3", "d6", "Qf3", "Nf6", "Bc4", "Bb7", "Bg5", "Bd4", "O-O-O", "O-O", "Rxd4", "h6", "Bd5", "c6"], "frage": "Du bist eine Figur vorn, Lg5 wird von h6 angegriffen. Finde den saubersten Zug.", "antwort": ["Bxf6"], "ok": {"Bxc6": "Auch stark (+5,1), aber es geht einfacher.", "e5": "Dein Partiezug (+3,8). Hat geklappt, weil Schwarz 14…Sxd5?? spielte, sicherer ist 14.Lxf6."}, "falsch": {"Bh4": "Nur +4,0. Nach 14…cxd5 verlierst du den Ld5."}, "warum": "14.Lxf6! Dxf6 15.Dxf6 gxf6 (+5,9): Beide Läufer hängen, also einen abtauschen und den anderen (Ld5) danach retten, 16.Lc4. Damentausch im Vorteil ist gut: Figur mehr, kaum Gegenspiel. Merke: Hängen zwei deiner Figuren, zuerst die mit Schlagzug retten.", "seite": "w"}, {"id": "u-sa2-c5", "schwaeche": "start", "quelle": "vs sa2te2", "line": ["d4", "Nf6", "Bf4", "e6", "e3", "d5", "Bd3"], "frage": "London mit Ld3. Welcher Zug gehört zu deinem Repertoire?", "antwort": ["c5"], "ok": {"Bd6": "Auch gut (−0,2), kommt in deinem Plan sowieso. Aber zuerst …c5."}, "falsch": {"Nc6": "Dein Partiezug (+0,3). Der Springer blockiert den c-Bauern, dann fehlt dir …c5."}, "warum": "4…c5! greift d4 an und gibt der Dame b6 (Druck auf b2). Dein Plan gegen London: …e6, …d5, …c5, …Ld6, dann …Sc6. Erst c-Bauer, dann Springer davor.", "seite": "b"}, {"id": "u-sa2-sxe3", "schwaeche": "nehmen", "quelle": "vs sa2te2", "line": ["d4", "Nf6", "Bf4", "e6", "e3", "d5", "Bd3", "Nc6", "c3", "Bd6", "g3", "O-O", "Nd2", "h6", "h4", "e5", "dxe5", "Bxe5", "Bxe5", "Nxe5", "Qe2", "Nxd3+", "Qxd3", "Ng4", "Qe2", "c6", "f3"], "frage": "Weiß hat 14.f3 gespielt und greift deinen Sg4 an. Was nun?", "antwort": ["Nxe3"], "ok": {}, "falsch": {"Ne5": "Rückzug (+1,6 für dich). Gut, aber du verschenkst einen Bauern.", "Nf6": "Rückzug (+1,2). Zu passiv.", "Qb6": "Fehler: 15.fxg4 und du hast eine Figur weniger."}, "warum": "14…Sxe3! 15.Dxe3 (+3,1): Der Springer nimmt mit Bauerngewinn, bevor er weg muss, und Weiß kann nicht rochieren. Hast du in der Partie gefunden. Merke: Bevor eine angegriffene Figur zurückgeht, prüfen, ob sie etwas schlagen kann.", "seite": "b"}, {"id": "u-sa2-ta5", "schwaeche": "schach", "quelle": "vs sa2te2", "line": ["d4", "Nf6", "Bf4", "e6", "e3", "d5", "Bd3", "Nc6", "c3", "Bd6", "g3", "O-O", "Nd2", "h6", "h4", "e5", "dxe5", "Bxe5", "Bxe5", "Nxe5", "Qe2", "Nxd3+", "Qxd3", "Ng4", "Qe2", "c6", "f3", "Nxe3", "Qxe3", "Re8", "Ne4", "dxe4", "fxe4", "Bf5", "e5", "f6", "Qc5", "Rxe5+", "Ne2", "Rxc5", "Nf4", "Qe8+", "Kd1", "Bg4+", "Kd2", "Rd8+", "Kc2", "Qe4+", "Kb3", "Rb5+", "Ka3"], "frage": "Matt in 2. Prüfe zuerst alle Schachs.", "antwort": ["Ra5+"], "ok": {"Qc2": "Auch Matt (in 3), aber es geht schneller.", "Qc4": "Auch Matt (in 3), aber es geht schneller."}, "falsch": {"Qe7+": "Dein Partiezug. Gewinnt noch, aber Matt kommt erst 3 Züge später."}, "warum": "26…Ta5+! 27.Kb3 Da4#. Der König hat nach dem Schach nur b3, und die Dame setzt dort Matt (Ta5 deckt a4). Merke: König am Rand, alle Schachs durchgehen und schauen, wohin er fliehen kann.", "seite": "b"}], "lichess": {"studien": {"w": {"name": "Repertoire Weiß", "id": "5hn21Waj", "url": "https://lichess.org/study/5hn21Waj"}, "b": {"name": "Repertoire Schwarz", "id": "6kfSby55", "url": "https://lichess.org/study/6kfSby55"}}, "kapitel": [{"seite": "w", "name": "Schottisch · 4…Sf6 (Mieses)", "trainer": 0, "url": "https://lichess.org/study/5hn21Waj/IypJ2qWH"}, {"seite": "w", "name": "Schottisch · 4…Lc5 5.Sb3", "trainer": 1, "url": "https://lichess.org/study/5hn21Waj/O3U4MJ2s"}, {"seite": "w", "name": "Schottisch · 4…Lb4+", "trainer": 2, "url": "https://lichess.org/study/5hn21Waj/5Ca4Of85"}, {"seite": "w", "name": "Schottisch · 4…Sxd4", "trainer": 3, "url": "https://lichess.org/study/5hn21Waj/tYojTtAl"}, {"seite": "w", "name": "Elefantengambit · 3.exd5 e4 4.De2", "trainer": 22, "url": "https://lichess.org/study/5hn21Waj/pp30fe0a"}, {"seite": "w", "name": "Elefantengambit · 3…Dxd5 4.Sc3", "trainer": 23, "url": "https://lichess.org/study/5hn21Waj/3wAy3UKy"}, {"seite": "w", "name": "Elefantengambit · 3…Ld6 4.d4", "trainer": 24, "url": "https://lichess.org/study/5hn21Waj/8FBYo2Z9"}, {"seite": "w", "name": "Alapin · 1…c5 2.c3", "trainer": 18, "url": "https://lichess.org/study/5hn21Waj/60AcDL9r"}, {"seite": "w", "name": "Französisch · Vorstoß 3.e5", "trainer": 19, "url": "https://lichess.org/study/5hn21Waj/69C3ZT2c"}, {"seite": "w", "name": "Caro-Kann · 3…Lf5 mit 5…c5 (Short)", "trainer": 28, "url": "https://lichess.org/study/5hn21Waj/jfVARHwT"}, {"seite": "w", "name": "Caro-Kann · 3…Lf5 mit 6…Db6 (Falle b2)", "trainer": 29, "url": "https://lichess.org/study/5hn21Waj/72960qZh"}, {"seite": "w", "name": "Caro-Kann · 3…Lf5 mit 5…Sd7", "trainer": 30, "url": "https://lichess.org/study/5hn21Waj/VkTEsoPv"}, {"seite": "w", "name": "Caro-Kann · 3…c5 4.dxc5", "trainer": 31, "url": "https://lichess.org/study/5hn21Waj/Fja6P2eb"}, {"seite": "w", "name": "Caro-Kann · 3…c5 4.dxc5 Sc6", "trainer": 32, "url": "https://lichess.org/study/5hn21Waj/1uY22e0t"}, {"seite": "w", "name": "Caro-Kann · 3…e6", "trainer": 33, "url": "https://lichess.org/study/5hn21Waj/EqjxnmbQ"}, {"seite": "w", "name": "Skandinavisch · 3…Da5", "trainer": 21, "url": "https://lichess.org/study/5hn21Waj/LCKJ0vys"}, {"seite": "w", "name": "Skandinavisch · 3…Dd6", "trainer": 25, "url": "https://lichess.org/study/5hn21Waj/yDjJHAAb"}, {"seite": "w", "name": "Skandinavisch · 3…Dd8", "trainer": 26, "url": "https://lichess.org/study/5hn21Waj/6Mn8x63n"}, {"seite": "w", "name": "Skandinavisch · 2…Sf6", "trainer": 27, "url": "https://lichess.org/study/5hn21Waj/Wk21ng7r"}, {"seite": "b", "name": "Italienisch · 3…Lc5 (4.c3 5.d3)", "trainer": 4, "url": "https://lichess.org/study/6kfSby55/Q93K3Rzf"}, {"seite": "b", "name": "Italienisch · 4.c3 mit 5.d4", "trainer": 11, "url": "https://lichess.org/study/6kfSby55/MZTOSnkz"}, {"seite": "b", "name": "Italienisch · Evans-Gambit 4.b4", "trainer": 12, "url": "https://lichess.org/study/6kfSby55/HPe0zs8N"}, {"seite": "b", "name": "Spanisch geschlossen · 3…a6", "trainer": 5, "url": "https://lichess.org/study/6kfSby55/ygMFvVrU"}, {"seite": "b", "name": "Spanisch · Abtausch 4.Lxc6", "trainer": 13, "url": "https://lichess.org/study/6kfSby55/9k3nC4E5"}, {"seite": "b", "name": "Vierspringerspiel · 3.Sc3", "trainer": 14, "url": "https://lichess.org/study/6kfSby55/Q9JlaGu6"}, {"seite": "b", "name": "Schottisch von der anderen Seite", "trainer": 15, "url": "https://lichess.org/study/6kfSby55/C4XwOaNQ"}, {"seite": "b", "name": "Königsgambit · 2.f4", "trainer": 16, "url": "https://lichess.org/study/6kfSby55/J80wwtrz"}, {"seite": "b", "name": "Frühe Dame · 2.Dh5 / 2.Df3", "trainer": 17, "url": "https://lichess.org/study/6kfSby55/apwNWvy0"}, {"seite": "b", "name": "Nimzo-Indisch · 4.e3 (Rubinstein)", "trainer": 6, "url": "https://lichess.org/study/6kfSby55/TvShQ9pB"}, {"seite": "b", "name": "Nimzo-Indisch · 4.Dc2 (klassisch)", "trainer": 7, "url": "https://lichess.org/study/6kfSby55/OOEV5k74"}, {"seite": "b", "name": "Nimzo-Indisch · 4.a3 (Sämisch)", "trainer": 8, "url": "https://lichess.org/study/6kfSby55/UM8PdwXd"}, {"seite": "b", "name": "Bogo-Indisch · 3.Sf3 Lb4+", "trainer": 9, "url": "https://lichess.org/study/6kfSby55/9KfuIN6P"}, {"seite": "b", "name": "London-System · 2.Lf4", "trainer": 10, "url": "https://lichess.org/study/6kfSby55/9WJtwQdm"}]}, "partien": [{"id": "g-2026-10-29-shs0226", "datum": "2026-10-29", "gegner": "shs0226", "farbe": "w", "ergebnis": "1-0", "eloIch": 501, "eloGegner": 471, "eroeffnung": "Schottisch 4…Lb4+", "quiz": "https://claude.ai/artifact/96tMrxxeAmEnrFGg7z6cw9", "quelle": "vs shs0226", "kurz": "Sieg. Nach 4…Lb4+ gut reagiert, aber 9.c4 ließ …Dxe4+ zu und 10.Sc3 deckte e4 nur einmal. Am Ende 17.Lh5! gewinnt die Dame.", "pgn": "1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bb4+ 5. c3 Bc5 6. Nb3 Qf6 7. Nxc5 d6 8. Nb3 Qe5 9. c4 Nf6 10. Nc3 Nd5 11. cxd5 f5 12. dxc6 bxc6 13. Be2 fxe4 14. O-O e3 15. fxe3 Qg5 16. e4 Qg6 17. Bh5 Qxh5 18. Qxh5+ 1-0"}, {"id": "g-2026-10-31-xpheresx-1", "datum": "2026-10-31", "gegner": "XPheresX", "farbe": "b", "ergebnis": "0-1", "eloIch": 485, "eloGegner": 819, "eroeffnung": "Italienisch 3…Sf6", "quiz": "https://claude.ai/artifact/TydrPHjgYZuLoL4afTUBaH", "quelle": "vs XPheresX", "kurz": "Sieg mit Grundreihenmatt 13…De1# gegen einen 819er. Aber 3…Sf6 statt 3…Lc5, und 7…O-O ließ e5 hängen.", "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Be7 5. O-O d5 6. exd5 Nxd5 7. Re1 O-O 8. Nxe5 Re8 9. Nxc6 bxc6 10. Qf3 Bc5 11. Rxe8+ Qxe8 12. Bxd5 cxd5 13. Qxd5 Qe1# 0-1"}, {"id": "g-2026-10-31-xpheresx-2", "datum": "2026-10-31", "gegner": "XPheresX", "farbe": "b", "ergebnis": "0-1", "eloIch": null, "eloGegner": null, "eroeffnung": "Italienisch 3…Sf6", "quiz": "https://claude.ai/artifact/GCp5AiNSo5X5Vtqz6emw9n", "quelle": "vs XPheresX", "kurz": "Sieg mit Matt 29…Dg2#. Wieder 3…Sf6 statt 3…Lc5 und e5 hing nach Te1. 26…Te8 hing an Sd6, 27…Dxe8 verpasste ein Matt in 3.", "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 d5 5. exd5 Nxd5 6. O-O Bc5 7. Re1 O-O 8. Nxe5 Nd4 9. c3 Nf5 10. Qf3 c6 11. d4 Nh4 12. Qg3 Nf5 13. Qd3 Bd6 14. Bf4 Nxf4 15. Qe4 Qg5 16. Nd2 Nh4 17. g3 Nh3+ 18. Kh1 Nxf2+ 19. Kg1 Nxe4 20. Nxe4 Qf5 21. Nxd6 Nf3+ 22. Nxf3 Qxf3 23. Rf1 Qe3+ 24. Kh1 Bh3 25. Bxf7+ Rxf7 26. Rxf7 Re8 27. Nxe8 Qxe8 28. Rxb7 Qe4+ 29. Kg1 Qg2# 0-1"}, {"id": "g-2026-10-31-jackblackpieces", "datum": "2026-10-31", "gegner": "JackBlackPieces", "farbe": "w", "ergebnis": "0-1", "eloIch": 493, "eloGegner": 493, "eroeffnung": "Elefantengambit 2…d5", "quiz": "https://claude.ai/artifact/TpextG1EcVzKd7hjFJCtS5", "quelle": "vs JackBlackPieces", "kurz": "Niederlage. 3.Sxe5 statt 3.exd5, 11.O-O ließ Lxc4 zu, und 13.Te1 war ein Grundreihenmatt statt 13.Lxf4.", "pgn": "1. e4 e5 2. Nf3 d5 3. Nxe5 dxe4 4. Nc3 Nf6 5. Qe2 Bd6 6. Nxe4 Nxe4 7. Qxe4 Qe7 8. d4 f5 9. Qf4 O-O 10. Bc4+ Be6 11. O-O Bxc4 12. Nxc4 Bxf4 13. Re1 Qxe1# 0-1"}, {"id": "g-2026-11-03-jacopoca81", "datum": "2026-11-03", "gegner": "JacopoCa81", "farbe": "w", "ergebnis": "0-1", "eloIch": 498, "eloGegner": 498, "eroeffnung": "Skandinavisch 1…d5", "quiz": "", "quelle": "vs JacopoCa81", "kurz": "Niederlage nach 8 Zügen. 2.d4 statt 2.exd5, dann 4.Dxd4 verpasst (Dame hing), und 7.Dd3 stellte die Dame auf ein Bauernfeld.", "pgn": "1. e4 d5 2. d4 dxe4 3. Nc3 Qxd4 4. Be3 Qb4 5. a3 Qxb2 6. Bb5+ c6 7. Qd3 Qxa1+ 8. Ke2 exd3+ 0-1"}, {"id": "g-2026-11-03-pratyax3008", "datum": "2026-11-03", "gegner": "Pratyax_3008", "farbe": "w", "ergebnis": "1-0", "eloIch": 505, "eloGegner": 494, "eroeffnung": "Schottisch 4…Sxd4", "quiz": "", "quelle": "vs Pratyax_3008", "kurz": "Sieg mit 12.Df7# in 12 Zügen. Sehr gut gespielt: 6.e5 und 9.Lc4 waren die Engine-Bestzüge.", "pgn": "1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 Nf6 6. e5 c5 7. Qf4 Nd5 8. Qf3 Ne7 9. Bc4 f6 10. exf6 gxf6 11. Qxf6 Rg8 12. Qf7# 1-0"}, {"id": "g-2026-11-04-sumithrakumar", "datum": "2026-11-04", "gegner": "sumithrakumar", "farbe": "b", "ergebnis": "0-1", "eloIch": 513, "eloGegner": 480, "eroeffnung": "Frühe Dame 2.Df3", "quiz": "", "quelle": "vs sumithrakumar", "kurz": "Sieg mit Matt 34…De2#. 3…Sf6 deckte f7 richtig, 17…Sb3! war eine schöne Gabel. Verpasst: 11…Lxh3 und ein früheres Matt mit …De1#.", "pgn": "1. e4 e5 2. Qf3 Nc6 3. Bc4 Nf6 4. d3 d6 5. Nh3 Bg4 6. Qe3 d5 7. Bb3 d4 8. Qd2 Bb4 9. c3 dxc3 10. bxc3 Ba5 11. f3 Be6 12. Ng5 Bxb3 13. axb3 h6 14. Nh3 O-O 15. b4 Bb6 16. b5 Na5 17. Ba3 Nb3 18. Qb2 Nxa1 19. Qxa1 Qxd3 20. Bc1 Rad8 21. Bd2 Qc2 22. Rf1 Rxd2 23. Nxd2 Rd8 24. Rf2 Bxf2+ 25. Nxf2 Qxd2+ 26. Kf1 c6 27. bxc6 bxc6 28. Qxa7 Qc1+ 29. Ke2 Rd2+ 30. Ke3 Rd7+ 31. Ke2 Rxa7 32. g4 Ra2+ 33. Kd3 Qf1+ 34. Ke3 Qe2# 0-1"}, {"id": "g-2026-11-04-almiraz1", "datum": "2026-11-04", "gegner": "Almiraz1", "farbe": "w", "ergebnis": "1-0", "eloIch": 529, "eloGegner": 501, "eroeffnung": "Schottisch 4…Sxd4", "quiz": "", "quelle": "vs Almiraz1", "kurz": "Sieg, Schwarz gab nach 15.Lxd8 auf. Verpasst: 7.Dxg7 und 8.b4 mit Läuferfang. Am Ende gewann 14.e5 die Dame.", "pgn": "1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Nxd4 5. Qxd4 b6 6. Nc3 Bc5 7. Qd3 d6 8. Qf3 Nf6 9. Bc4 Bb7 10. Bg5 Bd4 11. O-O-O O-O 12. Rxd4 h6 13. Bd5 c6 14. e5 Nxd5 15. Bxd8 1-0"}, {"id": "g-2026-11-04-sa2te2", "datum": "2026-11-04", "gegner": "sa2te2", "farbe": "b", "ergebnis": "0-1", "eloIch": 537, "eloGegner": 540, "eroeffnung": "London-System", "quiz": "", "quelle": "vs sa2te2", "kurz": "Sieg mit Matt 29…Dxb4#. Gegen London …Sc6 vor …c5 gespielt. 14…Sxe3 gewann einen Bauern, der König wurde dann bis a3 gejagt.", "pgn": "1. d4 Nf6 2. Bf4 e6 3. e3 d5 4. Bd3 Nc6 5. c3 Bd6 6. g3 O-O 7. Nd2 h6 8. h4 e5 9. dxe5 Bxe5 10. Bxe5 Nxe5 11. Qe2 Nxd3+ 12. Qxd3 Ng4 13. Qe2 c6 14. f3 Nxe3 15. Qxe3 Re8 16. Ne4 dxe4 17. fxe4 Bf5 18. e5 f6 19. Qc5 Rxe5+ 20. Ne2 Rxc5 21. Nf4 Qe8+ 22. Kd1 Bg4+ 23. Kd2 Rd8+ 24. Kc2 Qe4+ 25. Kb3 Rb5+ 26. Ka3 Qe7+ 27. b4 a5 28. Rae1 axb4+ 29. cxb4 Qxb4# 0-1"}]};
+const PROJECT_FILE = "schach-app/daten.json";
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const de = s => String(s).replace(/[QRBN]/g,m=>({Q:"D",R:"T",B:"L",N:"S"})[m]);
+const strip = s => String(s).replace(/[+#!?]/g,"");
+const pad = n => String(n).padStart(2,"0");
+const dstr = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today = () => dstr(new Date());
+const addDays = (s,n) => {const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return dstr(d)};
+const fmt = s => {try{const [y,m,d]=s.split("-");return d+"."+m+"."}catch(e){return s}};
+const lsGet = (k,def) => {try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}};
+const lsSet = (k,v) => {try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+function toast(t){const el=document.createElement("div");el.className="toast";el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
+
+/* ---------- Server: Speicher und KI ----------
+   Ersetzt die Claude-Schnittstellen: Fortschritt, Chat und Analysen liegen auf dem eigenen Server,
+   KI-Fragen gehen an ein kostenloses Modell (NVIDIA, sonst Gemini). */
+const SERVER=(()=>{
+  const KEY="schach-zugang";
+  try{ const m=location.hash.match(/^#k=([A-Za-z0-9_-]{16,})/); if(m){localStorage.setItem(KEY,m[1]); history.replaceState(null,"",location.pathname+"#heute")} }catch(e){}
+  const token=()=>{try{return localStorage.getItem(KEY)||""}catch(e){return ""}};
+  const setToken=t=>{try{t?localStorage.setItem(KEY,t):localStorage.removeItem(KEY)}catch(e){}};
+  const fehler=(code,extra)=>Object.assign({code},extra||{});
+  async function req(method,path,body,signal){
+    let r;
+    const headers={"Authorization":"Bearer "+token()}; if(body!==undefined) headers["Content-Type"]="application/json";
+    try{ r=await fetch(path,{method,headers,body:body===undefined?undefined:(typeof body==="string"?body:JSON.stringify(body)),signal,cache:"no-store"}) }
+    catch(e){ if(e&&e.name==="AbortError") throw fehler("cancelled"); throw fehler("offline") }
+    if(r.status===401) throw fehler("not_granted");
+    if(r.status===429) throw fehler("rate_limited");
+    return r;
+  }
+  const name=p=>encodeURIComponent(String(p).split("/").pop());
+  async function get(n){const r=await req("GET","/api/doc/"+name(n));if(r.status===404)return null;if(!r.ok)throw fehler("server");return (await r.json()).data}
+  async function put(n,data){const r=await req("PUT","/api/doc/"+name(n),JSON.stringify(data));if(!r.ok)throw fehler("server",{status:r.status})}
+  async function del(n){const r=await req("DELETE","/api/doc/"+name(n));if(!r.ok&&r.status!==404)throw fehler("server")}
+  const doc=p=>({get:async()=>{const d=await get(p);return {exists:d!=null,data:()=>d}},set:d=>put(p,d),delete:()=>del(p)});
+  async function pruefe(t){const r=await fetch("/api/pruefen",{headers:{"Authorization":"Bearer "+t},cache:"no-store"});return r.ok}
+  /* Gesprächsverlauf so formen, dass jedes Modell ihn annimmt: abwechselnd user/assistant, Start mit user */
+  function nachrichten(input){
+    const roh=typeof input==="string"?[{role:"user",content:input}]:(input||[]).map(x=>({role:x.role==="assistant"?"assistant":"user",content:String(x.content||"")}));
+    const out=[]; for(const m of roh){const l=out[out.length-1]; if(l&&l.role===m.role) l.content+="\n\n"+m.content; else out.push({role:m.role,content:m.content})}
+    while(out.length&&out[0].role!=="user") out.shift();
+    return out;
+  }
+  const ohneDenken=s=>s.replace(/<think>[\s\S]*?(<\/think>|$)/g,"").replace(/^\s+/,"");
+  async function frage(input,opt){
+    opt=opt||{}; let text="", roh="", truncated=false;
+    const r=await req("POST","/api/frage",{messages:nachrichten(input),json:!!opt.json},opt.signal);
+    if(!r.ok){let d=[];try{d=(await r.json()).fehlversuche||[]}catch(e){} throw fehler(r.status===503?"anbieter":"server",{detail:d})}
+    const modell=r.headers.get("X-Modell")||"";
+    const reader=r.body.getReader(), dec=new TextDecoder(); let puffer="";
+    try{
+      for(;;){
+        const {done,value}=await reader.read(); if(done) break;
+        puffer+=dec.decode(value,{stream:true});
+        let i; while((i=puffer.indexOf("\n"))>=0){
+          const z=puffer.slice(0,i).trim(); puffer=puffer.slice(i+1);
+          if(!z.startsWith("data:")) continue; const d=z.slice(5).trim(); if(!d||d==="[DONE]") continue;
+          let j; try{j=JSON.parse(d)}catch(e){continue}
+          const c=j.choices&&j.choices[0]; if(!c) continue;
+          if(c.delta&&typeof c.delta.content==="string"&&c.delta.content){roh+=c.delta.content; text=ohneDenken(roh); if(opt.onText&&text) opt.onText({text})}
+          if(c.finish_reason==="length") truncated=true;
+        }
+      }
+    }catch(e){ if(opt.signal&&opt.signal.aborted) throw fehler("cancelled",{text}); throw fehler("server",{text}) }
+    if(opt.signal&&opt.signal.aborted) throw fehler("cancelled",{text});
+    if(!text.trim()) throw fehler("leer");
+    return {text,truncated,modell};
+  }
+  const sample=(input,opt)=>frage(input,opt);
+  sample.limits=async()=>({tools:false});
+  sample.json=async(prompt,opt)=>{
+    const r=await frage(prompt+"\n\nWichtig: Gib NUR das JSON-Objekt aus, ohne Codeblock und ohne Text davor oder danach.",Object.assign({},opt,{json:true}));
+    const s=r.text.replace(/```(?:json)?/gi,"").trim(), a=s.indexOf("{"), b=s.lastIndexOf("}");
+    if(a<0||b<=a) throw fehler("invalid_json");
+    try{return JSON.parse(s.slice(a,b+1))}catch(e){throw fehler("invalid_json")}
+  };
+  return {token,setToken,pruefe,get,put,del,doc,sample};
+})();
+
+function zeigeZugang(){
+  if(document.getElementById("zugang")) return;
+  const hat=!!SERVER.token();
+  const el=document.createElement("div"); el.id="zugang"; el.className="zg";
+  el.innerHTML=`<div class="zg-box" role="dialog" aria-modal="true" aria-labelledby="zg-t"><h2 id="zg-t">Zugang zum Server</h2>
+   <p class="small muted">Den Zugangscode hat dir Claude im Chat gegeben. Einmal eingeben reicht, danach merkt sich die App ihn.</p>
+   <input type="text" id="zg-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Zugangscode" aria-label="Zugangscode">
+   <p class="small" id="zg-msg" hidden></p>
+   <div class="row"><button class="btn p" type="button" id="zg-ok">Verbinden</button><button class="btn" type="button" id="zg-zu">${hat?"Schließen":"Später"}</button>${hat?'<button class="btn" type="button" id="zg-weg">Code entfernen</button>':""}</div></div>`;
+  document.body.appendChild(el);
+  const inp=$("#zg-in"), msg=$("#zg-msg"), zu=()=>el.remove();
+  setTimeout(()=>{try{inp.focus()}catch(e){}},60);
+  $("#zg-zu").onclick=zu;
+  const weg=$("#zg-weg"); if(weg) weg.onclick=()=>{SERVER.setToken("");zu();setSync("err","Kein Zugang");toast("Code entfernt")};
+  $("#zg-ok").onclick=async()=>{
+    const code=inp.value.replace(/\s+/g,""); if(!code) return;
+    msg.hidden=false; msg.textContent="Prüfe …";
+    let ok=false; try{ok=await SERVER.pruefe(code)}catch(e){msg.textContent="Keine Verbindung zum Server. Prüf dein Internet.";return}
+    if(!ok){msg.textContent="Der Code stimmt nicht. Achte auf Groß- und Kleinschreibung.";return}
+    SERVER.setToken(code); zu(); toast("Verbunden"); await initStore(); syncData(false);
+  };
+  inp.onkeydown=e=>{if(e.key==="Enter")$("#zg-ok").click()};
+}
+
+/* ---------- Daten ---------- */
+let D = lsGet("schach-daten", null) || FALLBACK;
+if (FALLBACK && D && (D.version||0) < (FALLBACK.version||0)) D = FALLBACK;
+
+/* ---------- Zustand (Fortschritt) ---------- */
+const BLANK = {plan:{}, days:[], steps:{}, srs:{}, fertig:{}, custom:[], notes:[], seen:[], games:[], fragen:[], anaIds:[], weekOverride:0};
+let S = Object.assign({}, BLANK, lsGet("schach-state", {}));
+let C = lsGet("schach-chat", {turns:[]});
+let saveErr=0, stateDoc=null, chatDoc=null, saving={}, pendingSave={}, anaDb=null, anaUid="", stateGeladen=false;
+function persist(which){
+  if(which==="state") lsSet("schach-state",S); else lsSet("schach-chat",C);
+  const doc = which==="state"?stateDoc:chatDoc; if(!doc) return;
+  clearTimeout(pendingSave[which]);
+  pendingSave[which]=setTimeout(async function run(){
+    if(saving[which]){pendingSave[which]=setTimeout(run,600);return}
+    saving[which]=true;
+    try{ await doc.set(JSON.parse(JSON.stringify(which==="state"?S:C))); saveErr=0 }catch(e){ console.warn("save",e); if(!saveErr++) toast("Speichern auf dem Server fehlgeschlagen ("+((e&&e.code)||"Fehler")+"). Auf diesem Gerät ist es trotzdem gemerkt.") }
+    saving[which]=false;
+  },700);
+}
+const save = () => persist("state");
+const saveChat = () => persist("chat");
+
+async function initStore(){
+  if(!SERVER.token()) return;
+  try{
+    const db = SERVER, id = "ich";
+    anaDb = db; anaUid = id;
+    stateDoc = db.doc("data/users/"+id+"/state");
+    chatDoc = db.doc("data/users/"+id+"/chat");
+    const [a,b] = await Promise.all([stateDoc.get(),chatDoc.get()]);
+    /* data() ist eingefroren: erst kopieren, sonst laufen spätere Änderungen ins Leere */
+    const copy = x => JSON.parse(JSON.stringify(x));
+    if(a.exists){ S = Object.assign({}, BLANK, copy(a.data())); lsSet("schach-state",S) } else if(Object.keys(S.plan).length||S.days.length) save();
+    if(b.exists){ C = Object.assign({turns:[]}, copy(b.data())); lsSet("schach-chat",C) }
+    stateGeladen=true; fertigUebernehmen(); pruefeUebungen();
+    render();
+  }catch(e){ console.warn("store",e); if(e&&e.code==="not_granted") zeigeZugang() }
+}
+
+/* ---------- Trainingsdaten vom Server holen ---------- */
+let syncState="idle", lastSync=0;
+function setSync(cls,txt){const b=$("#sync");b.className="sync "+cls;$("#sync-t").textContent=txt}
+async function syncData(manual){
+  if(syncState==="busy") return;
+  if(!SERVER.token()){ setSync("err","Kein Zugang"); if(manual) zeigeZugang(); return }
+  syncState="busy"; setSync("busy","Prüfe …");
+  try{
+    let nd=await SERVER.get("daten");
+    if(!nd){ nd=D&&(D.version||0)>=(FALLBACK.version||0)?D:FALLBACK; await SERVER.put("daten",nd) }
+    const changed = !D || nd.version!==D.version || nd.stand!==D.stand;
+    D = nd; lsSet("schach-daten", D); lastSync=Date.now();
+    setSync("ok","Stand "+fmt(D.stand));
+    if(changed){ render(); pruefeUebungen(); toast("Neue Daten geladen (Version "+D.version+")") }
+    else if(manual) toast("Alles aktuell");
+  }catch(e){
+    const c=e&&e.code;
+    setSync("err", D?"Stand "+fmt(D.stand):"Fehler");
+    if(c==="not_granted") zeigeZugang();
+    else if(manual) toast(c==="offline"?"Keine Verbindung zum Server.":"Konnte die Daten nicht laden. Später nochmal tippen.");
+  }
+  syncState="idle";
+}
+$("#sync").onclick=()=>SERVER.token()?syncData(true):zeigeZugang();
+$("#sync").oncontextmenu=e=>{e.preventDefault();zeigeZugang()};
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && Date.now()-lastSync>5*60*1000){ syncData(false); if(!review&&!saving.state) initStore() } });
+
+/* ---------- Ableitungen ---------- */
+function curWeek(){
+  if(S.weekOverride) return S.weekOverride;
+  const st=new Date((D.planStart||"2026-10-28")+"T12:00:00"), n=new Date(today()+"T12:00:00");
+  return Math.max(1,Math.min(8,Math.floor((n-st)/864e5/7)+1));
+}
+const W = n => D.wochen.find(w=>w.n===n) || D.wochen[0];
+const tkey = (n,i) => "w"+n+"t"+i;
+function weekDone(n){const w=W(n);return w.aufgaben.filter((_,i)=>S.plan[tkey(n,i)]).length}
+function nextTask(n){const w=W(n);const i=w.aufgaben.findIndex((_,i)=>!S.plan[tkey(n,i)]);return i<0?null:{i,text:w.aufgaben[i]}}
+function allItems(){return [...(D.uebungen||[]),...(S.custom||[])]}
+const IV=[0,1,3,7,14,30];
+/* Abgeschlossen: beim ersten Versuch gelöst oder von Hand abgehakt. Solche Fehler sind nie mehr fällig. */
+const istFertig=it=>!!(S.fertig||{})[it.id];
+const offeneItems=()=>allItems().filter(it=>!istFertig(it));
+const fertigeItems=()=>allItems().filter(istFertig);
+function isDue(it){if(istFertig(it))return false;const r=S.srs[it.id];return !r||r.due<=today()}
+function dueItems(){return allItems().filter(isDue)}
+/* einmalig: was bisher zuletzt richtig gelöst wurde, gilt als abgearbeitet */
+function fertigUebernehmen(){
+  if(S.fertigV||(stateDoc&&!stateGeladen)) return;
+  S.fertig=Object.assign({},S.fertig);
+  Object.keys(S.srs||{}).forEach(id=>{const r=S.srs[id];if(r&&r.box>=1&&!S.fertig[id])S.fertig[id]={d:r.due?addDays(r.due,-IV[Math.min(r.box,IV.length-1)]):today(),wie:"geloest"}});
+  S.fertigV=1; save();
+}
+function streak(){
+  const set=new Set(S.days); let d=today(), n=0;
+  if(!set.has(d)) d=addDays(d,-1);
+  while(set.has(d)){n++; d=addDays(d,-1)}
+  return n;
+}
+function daysThisWeek(){const t=today();let n=0;for(let i=0;i<7;i++) if(S.days.includes(addDays(t,-i))) n++;return n}
+function accuracy(filter){
+  let r=0,w=0; for(const it of allItems()){ if(filter&&!filter(it)) continue; const s=S.srs[it.id]; if(s){r+=s.r||0;w+=s.w||0} }
+  return {r,w,p:r+w?Math.round(r/(r+w)*100):null};
+}
+function markDay(){const t=today(); if(!S.days.includes(t)){S.days.push(t); S.days=S.days.slice(-400); save(); toast("Tag abgehakt. Serie: "+streak()+" Tage")}}
+
+/* ---------- Router ---------- */
+const VIEWS=["heute","bibliothek","plan","fehler","trainer"];
+let view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "heute";
+function go(v){ view=v; if(location.hash.slice(1)!==v) history.replaceState(null,"","#"+v); render(); window.scrollTo(0,0) }
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1); if(VIEWS.includes(v)&&v!==view){view=v;render()}});
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
+  /* gemerkte Fragen nicht verlieren: erst das Ende der Runde zeigen */
+  if(review&&review.pos<review.list.length&&(review.notes||[]).length){review.abbruch=true;review.pos=review.list.length;render();window.scrollTo(0,0);return}
+  review=null;go(b.dataset.v)});
+
+let review=null; // laufende Wiederholung
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===view?"page":"false"));
+  const nNew=(D.artifacts||[]).filter(a=>!S.seen.includes(a.id)).length;
+  const bn=$("#b-new"); bn.hidden=!nNew; bn.textContent=nNew;
+  const v=$("#view");
+  if(review && (view==="heute"||view==="fehler")) return renderReview(v);
+  ({heute:vHeute,bibliothek:vBib,plan:vPlan,fehler:vFehler,trainer:vTrainer})[view](v);
+}
+
+/* ---------- Heute ---------- */
+function vHeute(v){
+  const n=curWeek(), w=W(n), t=today(), st=S.steps[t]||{}, due=dueItems(), nt=nextTask(n), acc=accuracy();
+  const tot=D.wochen.reduce((a,w)=>a+w.aufgaben.length,0), done=Object.values(S.plan).filter(Boolean).length;
+  const rec=(D.artifacts||[]).filter(a=>(a.wochen||[]).includes(n));
+  const step=(k,title,body,actions)=>`<div class="step ${st[k]?"done":""}"><input class="ck" type="checkbox" id="st-${k}" data-step="${k}" ${st[k]?"checked":""} aria-label="${esc(title)} erledigt"><div><div class="t">${title}</div><div class="muted small">${body}</div>${actions?`<div class="actions">${actions}</div>`:""}</div></div>`;
+  const dayDone=S.days.includes(t);
+  v.innerHTML=`
+  <section>
+    <div class="hero">
+      <span class="eyebrow">Woche ${n} von 8 · ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})}</span>
+      <h1>${esc(w.titel)}</h1>
+      <p>${esc(w.ziel)}</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>${streak()}</b><span>Tage Serie</span></div>
+      <div class="stat"><b>${daysThisWeek()}<small class="muted">/5</small></b><span>Tage diese Woche</span></div>
+      <div class="stat"><b>${done}<small class="muted">/${tot}</small></b><span>Plan-Aufgaben</span></div>
+      <div class="stat"><b>${acc.p==null?"–":acc.p+"%"}</b><span>Wiederholung richtig</span></div>
+    </div>
+  </section>
+  ${D.nachricht&&D.nachricht.text?`<section class="card nachricht"><span class="eyebrow">Nachricht von Claude${D.nachricht.datum?" · "+fmt(D.nachricht.datum):""}</span><div>${md(D.nachricht.text)}</div></section>`:""}
+  <section>
+    <h2>Dein Training heute <small>ca. 25 Min</small></h2>
+    <div class="steps">
+      ${step("taktik","10 Min Taktik: "+esc(w.taktik),"Puzzles auf Lichess zum Thema der Woche. Vor jeder Lösung: Schachs, Schlagzüge, Drohungen.",`<a class="btn s" href="${esc(w.taktikLink)}" target="_blank" rel="noopener">Puzzles öffnen</a>`)}
+      ${step("wdh","Fehler wiederholen",due.length?`${Math.min(5,due.length)} Aufgaben aus deinen eigenen Fehlern sind fällig.`:"Heute ist nichts fällig. Stark!",due.length?`<button class="btn p s" type="button" id="go-rev">Starten</button>`:"")}
+      ${step("thema","Thema der Woche",nt?esc(nt.text):"Alle Aufgaben dieser Woche sind erledigt. Wiederhole die Linien im Eröffnungs-Trainer.",(nt?`<button class="btn s" type="button" id="tick-task">Aufgabe abhaken</button>`:"")+(rec[0]?`<a class="btn s" href="${esc(rec[0].url)}" target="_blank" rel="noopener">${esc(rec[0].titel)}</a>`:""))}
+      ${step("end","5 Min Endspiel: "+esc(w.endspiel),"Auf Lichess unter Übungen, oder frag den Trainer nach einer Stellung.",`<a class="btn s" href="https://lichess.org/practice" target="_blank" rel="noopener">Lichess-Übungen</a>`)}
+    </div>
+    <div class="row"><button class="btn ${dayDone?"":"p"}" type="button" id="day" ${dayDone?"disabled":""}>${dayDone?"Heute schon abgehakt":"Tag abhaken"}</button>
+    <button class="btn" type="button" id="ask-today">Trainer fragen, was heute wichtig ist</button></div>
+  </section>
+  ${newBlock()}`;
+  v.querySelectorAll("[data-step]").forEach(c=>c.onchange=()=>{setStep(c.dataset.step,c.checked);render()});
+  const g=$("#go-rev"); if(g) g.onclick=()=>startReview(due.slice(0,5),"Heute");
+  const tt=$("#tick-task"); if(tt) tt.onclick=()=>{S.plan[tkey(n,nt.i)]=true;setStep("thema",true);render();toast("Aufgabe abgehakt")};
+  $("#day").onclick=()=>{markDay();render()};
+  $("#ask-today").onclick=()=>{go("trainer");setTimeout(()=>send("Was soll ich heute am besten üben? Kurz und konkret."),50)};
+  bindNew();
+}
+function setStep(k,val){const t=today();S.steps[t]=Object.assign({},S.steps[t],{[k]:val});trimSteps();if(["taktik","wdh","thema","end"].every(x=>S.steps[t][x]))markDay();save()}
+function trimSteps(){const ks=Object.keys(S.steps).sort();while(ks.length>60) delete S.steps[ks.shift()]}
+function newBlock(){
+  const nw=(D.artifacts||[]).filter(a=>!S.seen.includes(a.id));
+  if(!nw.length) return "";
+  return `<section><h2>Neu für dich <small>${nw.length}</small></h2><div class="grid">${nw.slice(0,4).map(cardHTML).join("")}</div>
+  <div class="row"><button class="btn s" type="button" id="seen-all">Alle als gesehen markieren</button></div></section>`;
+}
+function bindNew(){
+  const b=$("#seen-all"); if(b) b.onclick=()=>{S.seen=[...new Set([...S.seen,...D.artifacts.map(a=>a.id)])];save();render()};
+  document.querySelectorAll("a.item[data-id]").forEach(a=>a.addEventListener("click",()=>{if(!S.seen.includes(a.dataset.id)){S.seen.push(a.dataset.id);save();setTimeout(render,300)}}));
+}
+
+/* ---------- Bibliothek ---------- */
+const GROUPS=[["plan","Plan"],["eroeffnung","Eröffnungen"],["taktik","Taktik"],["partien","Aus deinen Partien"],["endspiel","Endspiel"]];
+let bibFilter=lsGet("schach-filter","alle"), bibSort=lsGet("schach-sort","thema");
+function cardHTML(a){
+  const n=curWeek(), isNew=!S.seen.includes(a.id), forWeek=(a.wochen||[]).includes(n);
+  const tags=(a.tags||[]).map(t=>`<span class="tag ${t==="Weiß"?"w":t==="Schwarz"?"s":""}">${esc(t)}</span>`).join("");
+  return `<a class="card item" data-id="${esc(a.id)}" href="${esc(a.url)}" target="_blank" rel="noopener"><h3>${esc(a.titel)}</h3><p>${esc(a.text)}</p>
+   <div class="meta">${isNew?'<span class="tag new">Neu</span>':""}${forWeek?'<span class="tag wk">Woche '+n+'</span>':""}${tags}${a.datum?'<span class="tag">'+fmt(a.datum)+'</span>':""}</div></a>`;
+}
+function vBib(v){ if(bibTab==="partien") return vPartien(v,bibHead()); vUeb(v) }
+function vUeb(v){
+  const arts=D.artifacts||[], used=GROUPS.filter(g=>arts.some(a=>a.gruppe===g[0]));
+  const sorts=[["thema","Nach Thema"],["neu","Neueste zuerst"],["alt","Älteste zuerst"]];
+  const sortBar=`<div class="seg" role="group" aria-label="Sortierung">${sorts.map(x=>`<button type="button" data-sort="${x[0]}" aria-pressed="${bibSort===x[0]}">${x[1]}</button>`).join("")}</div>`;
+  if(bibSort!=="thema"){
+    const list=arts.filter(a=>bibFilter==="alle"||a.gruppe===bibFilter).slice().sort((a,b)=>{const c=(a.datum||"").localeCompare(b.datum||"");return bibSort==="neu"?-c:c});
+    const byDay={}; list.forEach(a=>{(byDay[a.datum||"ohne Datum"]=byDay[a.datum||"ohne Datum"]||[]).push(a)});
+    v.innerHTML=bibHead()+`<section><h1>Alle Übungen</h1><p class="muted">Alles, was wir zusammen gebaut haben. Neue Übungen erscheinen hier automatisch.</p>${sortBar}
+    <div class="chips" role="group" aria-label="Filter"><button class="chip" type="button" data-f="alle">Alle</button>${used.map(g=>`<button class="chip" type="button" data-f="${g[0]}">${g[1]}</button>`).join("")}</div></section>
+    ${Object.keys(byDay).map(d=>`<section><h2>${d==="ohne Datum"?d:new Date(d+"T12:00:00").toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} <small>${byDay[d].length}</small></h2><div class="grid">${byDay[d].map(cardHTML).join("")}</div></section>`).join("")||'<p class="empty">Nichts in dieser Gruppe.</p>'}`;
+    bindBib(v); return;
+  }
+  v.innerHTML=bibHead()+`<section><h1>Alle Übungen</h1><p class="muted">Alles, was wir zusammen gebaut haben. Neue Übungen erscheinen hier automatisch.</p>${sortBar}
+  <div class="chips" role="group" aria-label="Filter"><button class="chip" type="button" data-f="alle">Alle</button>${used.map(g=>`<button class="chip" type="button" data-f="${g[0]}">${g[1]}</button>`).join("")}</div></section>
+  ${used.filter(g=>bibFilter==="alle"||bibFilter===g[0]).map(g=>`<section><h2>${g[1]} <small>${arts.filter(a=>a.gruppe===g[0]).length}</small></h2><div class="grid">${arts.filter(a=>a.gruppe===g[0]).map(cardHTML).join("")}</div></section>`).join("")}`;
+  bindBib(v);
+}
+function bindBib(v){
+  const st=v.querySelector(".chips");
+  v.querySelectorAll(".chip[data-f]").forEach(c=>{c.setAttribute("aria-pressed",c.dataset.f===bibFilter);c.onclick=()=>{bibFilter=c.dataset.f;lsSet("schach-filter",bibFilter);render()}});
+  v.querySelectorAll("[data-sort]").forEach(b=>b.onclick=()=>{bibSort=b.dataset.sort;lsSet("schach-sort",bibSort);render()});
+  bindBibHead(v);
+  bindNew();
+}
+
+const MATT=20000;
+/* Harte Fakten zur Stellung aus chess.js, damit Claude nichts Falsches über das Brett erzählt */
+const FAKT=(function(){
+  const WERT={p:1,n:3,b:3,r:5,q:9,k:99}, FIG={k:"K",q:"D",r:"T",b:"L",n:"S",p:""};
+  const farbe=f=>f==="w"?"Weiß":"Schwarz", anders=f=>f==="w"?"b":"w";
+  /* gleiche Stellung, aber f ist am Zug */
+  const mitZug=(fen,f)=>{const t=fen.split(" ");t[1]=f;t[3]="-";return t.join(" ")};
+  const zuege=(fen,f)=>new Chess(mitZug(fen,f)).moves({verbose:true});
+  const istSchach=m=>/[+#]/.test(m.san);
+  function figuren(c){
+    const o={w:[],b:[]};
+    "abcdefgh".split("").forEach(x=>{for(let y=1;y<=8;y++){const p=c.get(x+y);if(p)o[p.color].push({n:FIG[p.type]+x+y,w:WERT[p.type]})}});
+    const z=a=>a.sort((u,v)=>v.w-u.w).map(u=>u.n).join(" ");
+    return "Weiß: "+z(o.w)+"\nSchwarz: "+z(o.b);
+  }
+  /* wie viele eigene Figuren decken das Feld: Figur umfärben, dann darf der Besitzer sie "schlagen".
+     Der eigene König zählt auch, wenn nur eine Figur angreift: Die steht ja nach dem Schlagen auf dem Feld. */
+  function decker(fen,feld,angreifer){
+    const c=new Chess(fen), p=c.get(feld); if(!p) return 0;
+    c.remove(feld); c.put({type:p.type==="k"?"q":p.type,color:anders(p.color)},feld);
+    const d=zuege(c.fen(),p.color).filter(m=>m.to===feld);
+    const nah=s=>Math.abs(s.charCodeAt(0)-feld.charCodeAt(0))<=1&&Math.abs(s.charCodeAt(1)-feld.charCodeAt(1))<=1;
+    const koenig="abcdefgh".split("").flatMap(x=>[1,2,3,4,5,6,7,8].map(y=>x+y)).find(s=>{const q=c.get(s);return q&&q.type==="k"&&q.color===p.color});
+    return d.length+(angreifer===1&&koenig&&nah(koenig)&&!d.some(m=>m.piece==="k")?1:0);
+  }
+  /* angegriffene Figuren, die ungedeckt sind oder von einer billigeren Figur angegriffen werden */
+  function gefaehrdet(fen){
+    const c=new Chess(fen), raus=[];
+    ["w","b"].forEach(f=>{
+      const an={};
+      zuege(fen,anders(f)).filter(m=>m.captured&&m.captured!=="k").forEach(m=>(an[m.to]=an[m.to]||[]).push(m));
+      Object.keys(an).forEach(feld=>{
+        const p=c.get(feld); if(!p||p.color!==f) return;
+        const billig=Math.min(...an[feld].map(m=>WERT[m.piece])), d=decker(fen,feld,an[feld].length);
+        if(d&&billig>=WERT[p.type]) return;
+        const wer=an[feld].map(m=>FIG[m.piece]+m.from).join(", ");
+        raus.push(farbe(f)+" "+FIG[p.type]+feld+" (angegriffen von "+wer+(d?"":", ungedeckt")+")");
+      });
+    });
+    return raus;
+  }
+  function stellung(fen){
+    try{
+      const c=new Chess(fen), f=c.turn(), alle=c.moves({verbose:true});
+      const droht=zuege(fen,anders(f)).filter(m=>(m.captured&&m.captured!=="k")||istSchach(m)).map(m=>m.san);
+      return "Figuren:\n"+figuren(c)+
+        "\nAm Zug: "+farbe(f)+(c.in_check()?" (steht im Schach)":"")+
+        "\nLegale Züge: "+(alle.map(m=>m.san).join(" ")||"keine")+
+        "\nDavon Schlagzüge: "+(alle.filter(m=>m.captured).map(m=>m.san).join(" ")||"keine")+
+        "\nDavon Schachgebote: "+(alle.filter(istSchach).map(m=>m.san).join(" ")||"keine")+
+        "\nWäre "+farbe(anders(f))+" am Zug, könnte er schlagen oder Schach geben mit: "+(droht.join(" ")||"nichts")+
+        "\nFiguren in Gefahr: "+(gefaehrdet(fen).join("; ")||"keine");
+    }catch(e){return ""}
+  }
+  /* ---------- Stockfish 10 (GPL, Quelle: github.com/nmrugg/stockfish.js) ----------
+     Läuft in einem eigenen Hintergrund-Prozess und wird erst bei der ersten Frage geladen.
+     Klappt das nicht, geht alles weiter, nur eben ohne Bewertung. */
+  const DATEI="stockfish.asm.js";
+  let motor=null, ladung=null, schlange=Promise.resolve(); const zustand={weg:"",fehler:""};
+  function probiere(w,weg){
+    return new Promise(fertig=>{
+      const ende=ok=>{clearTimeout(uhr);w.onerror=null;w.onmessage=null;if(ok){motor=w;zustand.weg=weg;w.postMessage("setoption name Contempt value 0")}else{try{w.terminate()}catch(e){}}fertig(ok)};
+      const uhr=setTimeout(()=>{zustand.fehler=weg+": keine Antwort";ende(false)},15000);
+      w.onerror=e=>{zustand.fehler=weg+": "+((e&&e.message)||"Start fehlgeschlagen");ende(false)};
+      w.onmessage=e=>{if(String(e.data).trim()==="uciok")ende(true)};
+      w.postMessage("uci");
+    });
+  }
+  function lade(){
+    if(!ladung)ladung=(async()=>{
+      try{if(await probiere(new Worker(DATEI),"eigene Datei"))return true}catch(e){zustand.fehler="eigene Datei: "+e.message}
+      try{
+        const url=new URL(DATEI,location.href).href;
+        const blob=URL.createObjectURL(new Blob(['importScripts("'+url+'")'],{type:"text/javascript"}));
+        if(await probiere(new Worker(blob),"blob"))return true;
+      }catch(e){zustand.fehler="blob: "+e.message}
+      return false;
+    })();
+    return ladung;
+  }
+  /* eine Suche, immer nur eine gleichzeitig. Antwort: {tiefe, zeilen:[{art,zahl,pv}]} aus Sicht der Seite am Zug */
+  function suche(fen,ms,mehr){
+    const lauf=schlange.then(()=>new Promise(fertig=>{
+      const z={}; let tiefe=0;
+      const ende=()=>{clearTimeout(uhr);motor.onmessage=null;fertig({tiefe,zeilen:Object.keys(z).sort((a,b)=>a-b).map(k=>z[k])})};
+      const uhr=setTimeout(ende,ms+5000);
+      motor.onmessage=e=>{
+        const s=String(e.data);
+        if(s.startsWith("bestmove"))return ende();
+        if(!s.startsWith("info ")||/ (lower|upper)bound /.test(s))return;
+        const m=s.match(/ depth (\d+).*? multipv (\d+).*? score (cp|mate) (-?\d+).*? pv (.+)$/);
+        if(m){tiefe=Math.max(tiefe,+m[1]);z[m[2]]={art:m[3],zahl:+m[4],pv:m[5].trim().split(/\s+/)}}
+      };
+      motor.postMessage("setoption name MultiPV value "+mehr);
+      motor.postMessage("position fen "+fen);
+      motor.postMessage("go depth 18 movetime "+ms);
+    }));
+    schlange=lauf.catch(()=>{});
+    return lauf;
+  }
+  /* Wert immer aus Sicht von Weiß: +0,35 ist gut für Weiß */
+  function wert(z,am){
+    const v=am==="w"?1:-1;
+    if(z.art==="mate")return "Matt in "+Math.abs(z.zahl)+" für "+(z.zahl*v>0?"Weiß":"Schwarz");
+    const c=z.zahl*v/100;
+    return (c<0?"−":"+")+Math.abs(c).toFixed(2).replace(".",",");
+  }
+  function linie(fen,pv,max){
+    const c=new Chess(fen), o=[];
+    for(const u of pv.slice(0,max)){const m=c.move({from:u.slice(0,2),to:u.slice(2,4),promotion:u[4]});if(!m)break;o.push(m.san)}
+    return o;
+  }
+  /* Gutachten für eine Stellung, auf Wunsch auch für einen bestimmten Zug darin */
+  async function gutachten(fen,san,ms){
+    try{
+      if(!await lade())return null;
+      const am=fen.split(" ")[1], a=await suche(fen,ms||2500,3);
+      if(!a.zeilen.length)return null;
+      let text="Stockfish 10 (Tiefe "+a.tiefe+"), Werte aus Sicht von Weiß in Bauern, beste Züge in dieser Stellung:";
+      a.zeilen.forEach(z=>{const l=linie(fen,z.pv,6);if(l.length)text+="\n- "+l[0]+": "+wert(z,am)+" (Linie: "+l.join(" ")+")"});
+      let kurz="Stockfish, Tiefe "+a.tiefe+": "+wert(a.zeilen[0],am);
+      const c=san?new Chess(fen):null, m=c?c.move(san,{sloppy:true}):null;
+      if(m){
+        const am2=c.turn(), b=c.game_over()?null:await suche(c.fen(),1200,1), z=b&&b.zeilen[0];
+        const w=z?wert(z,am2):c.in_checkmate()?"Matt":"Remis";
+        text+="\nNach "+m.san+": "+w+(z?" (Linie: "+linie(c.fen(),z.pv,6).join(" ")+")":"");
+        kurz+=" · nach "+m.san.replace(/[QRBN]/g,x=>({Q:"D",R:"T",B:"L",N:"S"})[x])+": "+w;
+      }
+      return {text,kurz};
+    }catch(e){zustand.fehler="Suche: "+(e&&e.message);return null}
+  }
+  /* kurzer Blick für das Prüf-Werkzeug */
+  async function blick(fen){
+    try{
+      if(!await lade())return null;
+      const r=await suche(fen,1000,1), z=r.zeilen[0];
+      return z?{wert:wert(z,fen.split(" ")[1]),linie:linie(fen,z.pv,6),tiefe:r.tiefe}:null;
+    }catch(e){return null}
+  }
+  /* ganze Partie: jede Stellung kurz prüfen und die größten Fehler herausziehen */
+  async function partie(hist,seite,melde,signal,punkt){
+    try{
+      if(!await lade())return "";
+      const c=new Chess(), ms=Math.max(120,Math.min(300,Math.round(45000/(hist.length+1))));
+      const kappe=z=>z.art==="mate"?(z.zahl>0?1500:-1500):Math.max(-1500,Math.min(1500,z.zahl));
+      const schau=async()=>{const am=c.turn(),r=await suche(c.fen(),ms,1),z=r.zeilen[0];return z?{cp:kappe(z)*(am==="w"?1:-1),z,am}:null};
+      /* für den Verlauf: Hundertstel-Bauern aus Sicht von Weiß, Matt in n als ±(MATT−n) */
+      const roh=x=>{const k=x.am==="w"?1:-1,z=x.z;return z.art==="mate"?k*(z.zahl<0?-1:1)*(MATT-Math.abs(z.zahl)):k*z.zahl};
+      const fehler=[]; let vor=await schau();
+      if(punkt)punkt(0,vor?roh(vor):0,"");
+      for(let i=0;i<hist.length;i++){
+        if(signal&&signal.aborted)return "";
+        melde(Math.floor(i/2)+1,Math.ceil(hist.length/2));
+        const fen=c.fen(), wer=c.turn(), m=c.move(hist[i]); if(!m)break;
+        const nach=c.game_over()?null:await schau(), cp=nach?nach.cp:c.in_checkmate()?(wer==="w"?1500:-1500):0;
+        if(punkt)punkt(i+1,nach?roh(nach):c.in_checkmate()?(wer==="w"?MATT:-MATT):0,vor?linie(fen,vor.z.pv,1)[0]||"":"");
+        if(vor&&(!seite||wer===seite)){
+          const weg=(vor.cp-cp)*(wer==="w"?1:-1), besser=linie(fen,vor.z.pv,5);
+          if(weg>=100&&besser[0]&&besser[0]!==m.san)fehler.push({weg,t:"Zug "+(Math.floor(i/2)+1)+" "+farbe(wer)+": gespielt "+m.san+", Wert von "+wert(vor.z,vor.am)+" auf "+(nach?wert(nach.z,nach.am):"Spielende")+", besser wäre "+besser[0]+" (Linie: "+besser.join(" ")+")"});
+        }
+        vor=nach;
+      }
+      const liste=fehler.sort((a,b)=>b.weg-a.weg).slice(0,5).map(f=>"- "+f.t).join("\n");
+      return "Stockfish 10 hat jede Stellung der Partie kurz geprüft (Werte aus Sicht von Weiß in Bauern).\n"+(liste?"Größte Fehler:\n"+liste:"Grobe Fehler (mehr als ein Bauer Verlust) hat Stockfish nicht gefunden.");
+    }catch(e){zustand.fehler="Partie: "+(e&&e.message);return ""}
+  }
+  
+
+  /* Werkzeug für Claude: Varianten auf dem echten Brett durchspielen statt raten */
+  const pruefer=melde=>({
+    name:"zuege_testen",
+    description:"Spielt eine Zugfolge von einer Stellung aus auf einem echten Brett. Gibt zurück, ob jeder Zug legal ist, und für die Stellung danach: wer am Zug ist, Schach, Matt, Patt, Figuren in Gefahr, Schlagzüge, Schachgebote und die Stockfish-Bewertung mit bester Fortsetzung. Nutze es für jede Variante, die du nennen willst.",
+    inputSchema:{type:"object",properties:{fen:{type:"string",description:"Ausgangsstellung als FEN"},zuege:{type:"array",items:{type:"string"},description:"Züge in englischer SAN, z. B. Nf3, exd4, O-O"}},required:["fen","zuege"]},
+    async execute(e){
+      if(melde) melde();
+      const fen=String(e&&e.fen||""), c=new Chess();
+      if(!c.validate_fen(fen).valid) throw new Error("Ungültige FEN");
+      c.load(fen);
+      const ok=[];
+      for(const s of [].concat(e.zuege||[]).slice(0,24)){
+        const m=c.move(String(s),{sloppy:true});
+        if(!m) return {illegal:String(s),gespielt:ok,fen:c.fen(),legal:c.moves()};
+        ok.push(m.san);
+      }
+      const alle=c.moves({verbose:true});
+      const raus={gespielt:ok,fen:c.fen(),amZug:farbe(c.turn()),schach:c.in_check(),matt:c.in_checkmate(),patt:c.in_stalemate(),
+        schlagzuege:alle.filter(m=>m.captured).map(m=>m.san),schachgebote:alle.filter(istSchach).map(m=>m.san),inGefahr:gefaehrdet(c.fen())};
+      if(!c.game_over()){const sf=await blick(c.fen());if(sf)raus.stockfish=sf}
+      return raus;
+    }
+  });
+  /* Sammelantwort zerlegen: vor jeder Antwort steht eine Zeile "=== Nummer" */
+  function verteile(liste,t,ende,zeig){
+    if(liste.length===1){liste[0].a=t.replace(/^\s*===\s*1\s*$/m,"").trim();zeig(liste[0]);return}
+    const marken=[], re=/^[ \t]*===[ \t]*(\d+)[ \t]*$/gm; let m;
+    while((m=re.exec(t)))marken.push({nr:+m[1]-1,von:m.index,bis:re.lastIndex});
+    if(!marken.length){
+      if(ende){liste[0].a=t.trim();liste.slice(1).forEach(it=>{it.a="Die Antwort steht bei deiner ersten Frage."});liste.forEach(zeig)}
+      return;
+    }
+    marken.forEach((k,i)=>{const it=liste[k.nr]; if(it){it.a=t.slice(k.bis,i+1<marken.length?marken[i+1].von:t.length).replace(/\n=*\s*$/,"").trim();zeig(it)}});
+    if(ende)liste.forEach(it=>{if(!it.a){it.a="Dazu kam keine Antwort. Stell die Frage bitte nochmal.";zeig(it)}});
+  }
+  /* kleines Brett zur Frage, damit man am Ende noch sieht, worum es ging */
+  function brett(fen,unten,san){
+    try{
+      const c=new Chess(fen), F={k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}, O={k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"};
+      const m=san?new Chess(fen).move(san,{sloppy:true}):null, kipp=unten==="b"; let h="";
+      for(let i=0;i<8;i++)for(let j=0;j<8;j++){
+        const r=kipp?i+1:8-i, f=kipp?7-j:j, s="abcdefgh"[f]+r, p=c.get(s);
+        h+='<i class="'+((f+r)%2?"d":"l")+(m&&(m.from===s||m.to===s)?" m":"")+'">'+(p?'<span class="'+(p.color==="w"?"fr-w":"fr-s")+'">'+F[p.type]+'\uFE0E</span><span class="fr-o">'+O[p.type]+'\uFE0E</span>':"")+'</i>';
+      }
+      return '<div class="fr-brett" role="img" aria-label="Stellung zur Frage">'+h+'</div>';
+    }catch(e){return ""}
+  }
+  return {stellung,pruefer,verteile,brett,gutachten,partie,stand:()=>Object.assign({},zustand)};
+})();
+
+/* ---------- Frage zum Zug ---------- */
+const ASK={}, ASKCTX={};
+function askBox(key,ph,ctx){
+  ASKCTX[key]=ctx; const a=ASK[key]||{};
+  return `<div class="card askbox"><b>Frag den Trainer zu diesem Zug</b>
+   <div class="row" style="flex-wrap:nowrap"><input type="text" id="ask-in" placeholder="${esc(ph)}" value="${esc(a.q||"")}" aria-label="Frage zum Zug"><button class="btn p" type="button" id="ask-go" data-key="${esc(key)}">${a.busy?"Stopp":"Fragen"}</button></div>
+   <div id="ask-out" class="small">${a.busy&&!a.text?'<p class="muted">Denkt nach …</p>':a.text?md(a.text):'<p class="muted">Leer lassen und auf Fragen tippen, dann erklärt der Trainer den Zug.</p>'}</div>
+   ${a.sf&&!a.busy?'<p class="fr-sf">'+esc(a.sf)+'</p>':""}
+   ${a.text&&!a.busy?'<div class="row"><button class="btn s" type="button" id="ask-chat">Im Chat weiterfragen</button><button class="btn s" type="button" id="ask-say">Vorlesen</button></div>':""}</div>`;
+}
+function bindAsk(ph){
+  const go=$("#ask-go"); if(!go) return; const key=go.dataset.key, inp=$("#ask-in");
+  go.onclick=()=>{const a=ASK[key]; if(a&&a.busy){a.ctl&&a.ctl.abort();return} askMove(key,(inp.value||"").trim()||ph)};
+  inp.onkeydown=e=>{if(e.key==="Enter")go.click()};
+  const ch=$("#ask-chat"); if(ch) ch.onclick=()=>{const a=ASK[key],c=ASKCTX[key]();C.turns.push({role:"user",content:a.q+"\n(Stellung: "+c.fen+(c.moves?", Züge: "+c.moves:"")+")"},{role:"assistant",content:a.text});saveChat();tmode="chat";lsSet("schach-tmode","chat");review=null;go_("trainer")};
+  const sy=$("#ask-say"); if(sy) sy.onclick=()=>sayIt(ASK[key].text);
+}
+const go_=v=>go(v);
+async function askMove(key,q){
+  const sample=await getSample();
+  if(!sample){ASK[key]={q,text:"Der Trainer ist noch nicht eingerichtet. Tippe oben rechts auf den Knopf und gib deinen Zugangscode ein."};render();return}
+  const c=ASKCTX[key](); const a=ASK[key]={q,text:"",busy:true,ctl:new AbortController()}; render();
+  const stat=t=>{const o=$("#ask-out");if(o&&!a.text)o.innerHTML='<p class="muted">'+t+'</p>'};
+  stat("Stockfish rechnet …");
+  const sf=await FAKT.gutachten(c.fenBefore||c.fen,c.fenBefore?c.move:"");
+  a.sf=sf?sf.kurz:"Ohne Stockfish beantwortet";
+  if(a.ctl.signal.aborted){a.busy=false;a.text="";render();return}
+  stat("Denkt nach …");
+  const prompt=trainerContext()+`
+
+Justin fragt dich zu einer Stellung auf dem Brett in seiner App.
+${c.moves?"Züge bis hierher (englische SAN): "+c.moves+"\n":""}${c.fenBefore?"Stellung VOR dem Zug (FEN): "+c.fenBefore+"\n":""}${c.move?"Gespielter Zug: "+c.move+" ("+c.who+")\n":""}Stellung jetzt (FEN): ${c.fen}
+${c.fenBefore?"Fakten zur Stellung vor dem Zug:\n"+FAKT.stellung(c.fenBefore)+"\n":""}Fakten zur Stellung jetzt:
+${FAKT.stellung(c.fen)}
+${sf?sf.text+"\n":""}${c.extra?c.extra+"\n":""}
+Seine Frage: ${q}
+
+Antworte auf Deutsch in höchstens 6 kurzen Sätzen, deutsche Notation. Erkläre die Idee des Zuges, was er droht oder verhindert, und ob es etwas Besseres gab. Geh die Stellung konkret durch (Schachs, Schlagzüge, Drohungen) und stütz dich auf die Fakten. Für diese Frage hast du Stockfish: Die Werte oben und aus dem Werkzeug zuege_testen stammen aus einer schnellen Suche, + ist gut für Weiß. Für Taktik sind sie verlässlich, Unterschiede unter etwa einem Bauern sind Rauschen. Erkläre in Worten, Zahlen nur kurz. Prüfe jede Variante, die du nennst, vorher mit zuege_testen, wenn es dir zur Verfügung steht, und sag ehrlich, wenn du unsicher bist.`;
+  try{
+    const lim=await sample.limits().catch(()=>null);
+    const opt={signal:a.ctl.signal,onText:({text})=>{a.text=text;const gb=$("#ask-go"),o=$("#ask-out");if(o&&gb&&gb.dataset.key===key)o.innerHTML=md(text)}};
+    if(lim&&lim.tools) opt.tools=[FAKT.pruefer(()=>stat("Prüft Varianten am Brett …"))];
+    else opt.cache={gcTime:6*3600*1000};
+    const r=await sample(prompt,opt);
+    a.text=r.text;
+  }catch(e){ a.text=e&&e.text?e.text+"\n\n(unterbrochen)":e&&e.code==="cancelled"?"":e&&e.code==="rate_limited"?"Gerade zu viele Anfragen oder dein Limit ist erreicht. Später nochmal.":e&&e.code==="not_granted"?"Der Zugangscode stimmt nicht. Tippe oben rechts auf den Knopf und gib ihn neu ein.":"Das hat nicht geklappt. Tipp nochmal auf Fragen." }
+  a.busy=false; render();
+}
+
+/* ---------- Partien ---------- */
+let bibTab=lsGet("schach-bibtab","uebungen"), gv=null; // gv = {id, ply}
+function allGames(){
+  const proj=(D.partien||[]), key=g=>zugKey(g.pgn);
+  const seen=new Set(proj.map(key));
+  const own=(S.games||[]).filter(g=>!seen.has(key(g))).map(g=>Object.assign({own:true},g));
+  return [...proj,...own].sort((a,b)=>(b.datum||"").localeCompare(a.datum||"")||(b.id>a.id?1:-1));
+}
+function resultOf(g){
+  if(g.ergebnis==="1/2-1/2") return "Remis";
+  const win=(g.ergebnis==="1-0"&&g.farbe==="w")||(g.ergebnis==="0-1"&&g.farbe==="b");
+  return g.ergebnis==="*"||!g.ergebnis?"Offen":win?"Sieg":"Niederlage";
+}
+function gameItems(g){return allItems().filter(it=>(g.quelle&&it.quelle===g.quelle)||(it.gameId&&it.gameId===g.id))}
+function gameHist(g){
+  if(typeof Chess==="undefined") return null;
+  const l=parsePgn(g.pgn||"").history();
+  return l.length?l:null;
+}
+function gameCard(g){
+  const r=resultOf(g), n=gameItems(g).length;
+  return `<button class="card item gamecard" type="button" data-g="${esc(g.id)}"><div class="row" style="justify-content:space-between;width:100%"><h3>vs ${esc(g.gegner)}</h3><span class="res ${r==="Sieg"?"win":r==="Niederlage"?"loss":""}">${r}</span></div>
+   <p>${esc(g.kurz||"")}</p><div class="meta"><span class="tag ${g.farbe==="w"?"w":"s"}">${g.farbe==="w"?"Weiß":"Schwarz"}</span>${g.eroeffnung?`<span class="tag">${esc(g.eroeffnung)}</span>`:""}${n?`<span class="tag wk">${n} Übungen</span>`:""}${g.own?'<span class="tag">importiert</span>':""}${(S.anaIds||[]).includes(g.id)?'<span class="tag wk">Analyse</span>':""}${anaState&&anaState.busy&&anaState.gameId===g.id?'<span class="tag">wird analysiert</span>':""}<span class="tag">${fmt(g.datum)}</span></div></button>`;
+}
+function vPartien(v,head){
+  const gs=allGames();
+  if(gv){ const g=gs.find(x=>x.id===gv.id); if(g) return vGame(v,g,head); gv=null }
+  const w=gs.filter(g=>resultOf(g)==="Sieg").length, l=gs.filter(g=>resultOf(g)==="Niederlage").length;
+  v.innerHTML=head+`<section><div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="stat"><b>${gs.length}</b><span>Partien</span></div><div class="stat"><b>${w}</b><span>Siege</span></div><div class="stat"><b>${l}</b><span>Niederlagen</span></div></div>
+   <p class="small muted">Jede Partie, die du im Trainer importierst oder mir in Claude schickst, landet automatisch hier. Tipp auf eine Partie, um sie am Brett nachzuspielen und ihre Analyse zu lesen.</p>
+   <div class="row"><button class="btn" type="button" id="pt-import">Partie importieren</button></div></section>
+   ${gs.length?Object.entries(gs.reduce((m,g)=>{(m[g.datum]=m[g.datum]||[]).push(g);return m},{})).map(([d,list])=>`<section><h2>${new Date(d+"T12:00:00").toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} <small>${list.length}</small></h2><div class="grid">${list.map(gameCard).join("")}</div></section>`).join(""):'<p class="empty">Noch keine Partien.</p>'}`;
+  bindBibHead(v);
+  $("#pt-import").onclick=()=>{tmode="ana";lsSet("schach-tmode","ana");go("trainer")};
+  v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{gv={id:b.dataset.g,ply:-1};render();window.scrollTo(0,0)});
+}
+function vGame(v,g,head){
+  const hist=gameHist(g);
+  if(!hist){v.innerHTML=head+`<div class="fb bad"><b>Partie konnte nicht geladen werden.</b><p>Das Brett ist nicht geladen oder das PGN ist fehlerhaft.</p><div class="row"><button class="btn" type="button" id="gv-back">Zurück</button></div></div>`;bindBibHead(v);$("#gv-back").onclick=()=>{gv=null;render()};return}
+  if(gv.ply<0||gv.ply>hist.length) gv.ply=hist.length;
+  const c=new Chess(); let lm=null; for(let i=0;i<gv.ply;i++) lm=c.move(hist[i]);
+  const r=resultOf(g), its=gameItems(g);
+  const mvW=gv.ply>0?((gv.ply-1)%2===0?"w":"b"):null, mine=mvW===g.farbe, mvLabel=gv.ply>0?(Math.floor((gv.ply-1)/2)+1)+((gv.ply-1)%2?"…":".")+de(hist[gv.ply-1]):"";
+  const askPh=gv.ply>0?"Warum "+mvLabel+"? War der Zug gut?":"Was ist der Plan in dieser Stellung?";
+  const askCtx=()=>{const b=new Chess();for(let i=0;i<gv.ply-1;i++)b.move(hist[i]);return {fenBefore:gv.ply>0?b.fen():"",fen:c.fen(),move:gv.ply>0?hist[gv.ply-1]:"",who:gv.ply>0?(mine?"Justins eigener Zug":"Zug seines Gegners")+", Zug "+mvLabel:"",moves:hist.slice(0,gv.ply).join(" "),extra:"Partie vom "+g.datum+" gegen "+g.gegner+", Justin hatte "+(g.farbe==="w"?"Weiß":"Schwarz")+"."}};
+  const mvb=i=>`<button type="button" class="mv ${i+1===gv.ply?"on":""}" data-ply="${i+1}">${esc(de(hist[i]))}</button>`;
+  let ml=""; for(let i=0;i<hist.length;i+=2) ml+=`<span class="pair"><span class="mn">${i/2+1}.</span>${mvb(i)}${i+1<hist.length?mvb(i+1):""}</span> `;
+  v.innerHTML=head+`<section><div class="row" style="justify-content:space-between"><button class="btn s" type="button" id="gv-back">← Alle Partien</button><span class="res ${r==="Sieg"?"win":r==="Niederlage"?"loss":""}">${r} ${esc(g.ergebnis||"")}</span></div>
+   <h1>vs ${esc(g.gegner)}</h1><p class="small muted">${fmt(g.datum)} · du mit ${g.farbe==="w"?"Weiß":"Schwarz"}${g.eloIch?" ("+g.eloIch+")":""}${g.eloGegner?" gegen "+g.eloGegner:""}${g.eroeffnung?" · "+esc(g.eroeffnung):""}</p></section>
+   <div class="trainer-box"><div><div class="board" id="board" role="grid" aria-label="Schachbrett"></div>
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn s" type="button" data-nav="0" aria-label="Zum Anfang">|◀</button><button class="btn s" type="button" data-nav="-1" aria-label="Zug zurück">◀</button><span class="nota muted" id="gv-stand" style="min-width:64px;text-align:center">${gv.ply}/${hist.length}</span><button class="btn s" type="button" data-nav="1" aria-label="Zug vor">▶</button><button class="btn s" type="button" data-nav="end" aria-label="Zum Ende">▶|</button></div>
+    <div id="vl-slot"></div></div>
+   <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+    ${g.kurz?`<div class="card"><b>Kurz gesagt</b><p>${esc(g.kurz)}</p></div>`:""}
+    <div class="card"><b>Züge</b><div class="movelist">${ml}</div></div>
+    ${askBox("g-"+g.id+"-"+gv.ply,askPh,askCtx)}
+    <div class="row">${its.length?`<button class="btn p" type="button" id="gv-ex">${its.length} ${its.length===1?"Übung":"Übungen"} aus dieser Partie</button>`:""}${g.quiz?`<a class="btn" href="${esc(g.quiz)}" target="_blank" rel="noopener">Quiz zur Partie</a>`:""}<button class="btn" type="button" id="gv-chat">Mit Trainer besprechen</button>${g.own?'<button class="btn s" type="button" id="gv-del">Löschen</button>':""}</div>
+    <div id="ana-slot" style="display:flex;flex-direction:column;gap:10px;min-width:0"></div>
+   </div></div>`;
+  drawBoard($("#board"),c,{flip:g.farbe==="b",last:lm?[lm.from,lm.to]:null,onTap:null});
+  bindBibHead(v);
+  $("#gv-back").onclick=()=>{gv=null;render()};
+  v.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{const x=b.dataset.nav;gv.ply=x==="0"?0:x==="end"?hist.length:Math.max(0,Math.min(hist.length,gv.ply+(+x)));render()});
+  v.querySelectorAll("[data-ply]").forEach(b=>b.onclick=()=>{gv.ply=+b.dataset.ply;render()});
+  bindAsk(askPh);
+  zeigeAnalyse(g,hist);
+  zeigeVerlauf();
+  const ex=$("#gv-ex"); if(ex) ex.onclick=()=>{go("fehler");startReview(its,"vs "+g.gegner)};
+  $("#gv-chat").onclick=()=>send("Lass uns meine Partie vs "+g.gegner+" vom "+fmt(g.datum)+" besprechen (ich hatte "+(g.farbe==="w"?"Weiß":"Schwarz")+", "+r+"). Was war der wichtigste Moment, und was soll ich daraus mitnehmen?\n\n"+g.pgn);
+  const del=$("#gv-del"); if(del) del.onclick=()=>{S.games=(S.games||[]).filter(x=>x.id!==g.id);vergissAnalyse(g.id);gv=null;save();render();toast("Partie gelöscht")};
+}
+/* ---------- Partieverlauf: Bewertung nach jedem Zug, aus Sicht von Weiß ---------- */
+/* einmal gründlich vorgerechnet (Stockfish 10, je Stellung 1,5 s), neue Partien rechnet die App selbst */
+const VORAB={"g-2026-10-29-shs0226":{"v":[53,101,91,88,31,37,69,21,102,82,53,-20,436,437,456,476,556,396,533,378,1012,1014,1382,1336,1355,1313,1334,1269,1401,1425,1515,1491,2360,2320,2946,2888],"b":{"12":"Bb6","20":"Nxe4"}},"g-2026-10-31-xpheresx-1":{"v":[68,72,36,26,82,49,33,36,40,28,90,66,98,75,102,122,732,197,195,109,210,214,207,-19999,40,-19999,-20000],"b":{"16":"Nxe5","17":"Nxf7","23":"Bd2","24":"Qe1#","25":"Kf1"}},"g-2026-10-31-xpheresx-2":{"v":[57,77,64,45,81,44,23,40,95,76,69,109,74,37,62,57,251,249,298,153,191,203,193,172,205,162,194,-465,-485,-492,-135,-622,179,-516,-492,-949,-951,-968,-974,-962,-523,-570,-405,-409,-389,-849,-871,-974,-769,-1501,-19994,-1534,-19994,-19997,-658,-19998,-19999,-19999,-20000],"b":{"16":"Nxe5","19":"d4","27":"Nd2","30":"Bxe5","31":"Nxf7","32":"Bxe5","33":"Nxf7","35":"Kf1","45":"Nxf7","54":"Qe4+"}},"g-2026-10-31-jackblackpieces":{"v":[62,37,58,64,117,90,125,-31,75,0,-12,-62,-50,15,-28,-9,142,15,123,51,51,-412,-374,-781,-777,-19999,-20000],"b":{"7":"Bc4","16":"f6","17":"Qe3","21":"Qg5","23":"Re1"}},"g-2026-11-03-jacopoca81":{"v":[53,40,102,-50,-61,-43,1208,-104,-17,-40,508,-62,-181,-2306,-1543,-2722,-2714],"b":{"3":"exd5","6":"Nf6","7":"Qxd4","10":"Qd6","11":"Nd5","13":"Nd5"}},"g-2026-11-03-pratyax3008":{"v":[28,59,33,80,75,19,3,40,108,113,136,173,137,76,123,144,425,460,651,499,602,686,19999,20000],"b":{"16":"Nc7"}},"g-2026-11-04-sumithrakumar":{"v":[40,67,57,-79,-99,-38,-32,-155,-56,-256,-162,-169,-134,-140,-85,-168,-209,-164,-152,-120,-112,-270,34,-65,-69,-70,-44,-49,5,-71,-1,-137,-137,-449,-457,-437,-439,-940,-872,-997,-937,-961,-915,-975,-913,-869,-916,-6666,-2290,-6771,-1037,-1026,-950,-919,-1012,-19994,-19995,-19998,-19999,-19999,-19998,-19998,-19997,-19997,-19998,-19998,-19999,-19999,-20000],"b":{"3":"Nf3","7":"Ne2","9":"Bb5","21":"Ng5","22":"Bxh3","31":"Na3","33":"Qc2","37":"Ke2"}},"g-2026-11-04-almiraz1":{"v":[51,57,62,87,50,41,53,37,86,97,166,143,250,117,342,48,140,35,37,78,81,41,706,696,701,611,750,348,965,946],"b":{"13":"Qxg7","14":"Ne7","15":"b4","22":"Bxc3","27":"Bxf6","28":"hxg5"}},"g-2026-11-04-sa2te2":{"v":[73,22,25,-11,35,13,37,21,87,58,70,-131,-51,-101,-7,-177,-164,-156,-100,-164,-161,-237,-162,-126,-118,-189,-172,-322,-236,-340,-267,-346,-275,-325,-262,-269,-152,-1217,-1156,-1700,-1660,-3000,-1727,-19995,-19994,-19994,-19995,-19995,-19996,-19997,-19998,-19998,-19994,-19994,-19993,-19994,-19995,-19999,-20000],"b":{"11":"Nf3","15":"Ngf3","27":"Ngf3","37":"Nf3"}}};
+const VL={}, vlFehl={}; let vlJob=null, vlZieht=false;
+const chance=cp=>Math.abs(cp)>=15000?Math.sign(cp):2/(1+Math.exp(-0.00368208*cp))-1;
+const vlPfad=id=>"data/users/"+anaUid+"/verlauf-"+String(id).replace(/[^A-Za-z0-9_.~-]/g,"_");
+const vlPasst=(V,n)=>!!V&&Array.isArray(V.v)&&V.v.length===n+1;
+/* Lage im Diagramm in Prozent, mit etwas Rand, damit Punkte oben, unten und rechts nicht abgeschnitten werden */
+const vlX=(p,n)=>1.5+97*p/(n||1), vlY=cp=>50-44*chance(cp);
+function vlMerke(id,V){
+  VL[id]=V; lsSet("schach-vl-"+id,V);
+  if(anaDb) Promise.resolve().then(()=>anaDb.doc(vlPfad(id)).set(JSON.parse(JSON.stringify(V)))).catch(e=>console.warn("verlauf",e));
+}
+async function vlHole(id,n){
+  if(vlPasst(VL[id],n)) return VL[id];
+  if(vlPasst(VORAB[id],n)) return VL[id]=VORAB[id];
+  const lokal=lsGet("schach-vl-"+id,null);
+  if(vlPasst(lokal,n)) return VL[id]=lokal;
+  if(anaDb){ try{const d=await anaDb.doc(vlPfad(id)).get(); if(d.exists){const x=JSON.parse(JSON.stringify(d.data())); if(vlPasst(x,n)) return VL[id]=x}}catch(e){console.warn("verlauf",e)} }
+  return null;
+}
+function vlVergiss(id){
+  delete VL[id]; try{localStorage.removeItem("schach-vl-"+id)}catch(e){}
+  if(anaDb) Promise.resolve().then(()=>anaDb.doc(vlPfad(id)).delete()).catch(()=>{});
+}
+/* a = Wert vor dem Zug, b = danach. Schlecht heißt: Gewinnchance deutlich gefallen oder ein Matt aus der Hand gegeben */
+function vlUrteil(a,b,weiss){
+  const k=weiss?1:-1, weg=(chance(a)-chance(b))*k, matt=k*a>=15000&&k*b<15000;
+  return {schlecht:matt||weg>=.2,art:weg>=.3?"pz":"fl",name:matt?"Matt verpasst":weg>=.3?"Patzer":"Fehler"};
+}
+function vlPunkt(J,p,cp,best){
+  const V=J.V; V.v[p]=cp;
+  if(p>0&&best&&best!==J.hist[p-1]&&vlUrteil(V.v[p-1],cp,p%2===1).schlecht) V.b[p]=best;
+  J.stand=p;
+  const z=vlZiel(); if(z&&z.id===J.id) zeigeVerlauf();
+}
+function vlStart(g,hist){
+  if(vlJob&&vlJob.id===g.id) return;
+  if(vlJob&&vlJob.ctl) vlJob.ctl.abort();
+  delete vlFehl[g.id];
+  const J=vlJob={id:g.id,hist,ctl:new AbortController(),V:{v:[],b:{}},stand:-1};
+  zeigeVerlauf();
+  FAKT.partie(hist,null,()=>{},J.ctl.signal,(p,cp,b)=>vlPunkt(J,p,cp,b)).then(()=>vlEnde(J));
+}
+function vlEnde(J,abbruch){
+  if(vlJob===J) vlJob=null;
+  if(abbruch||(J.ctl&&J.ctl.signal.aborted)) return;
+  if(vlPasst(J.V,J.hist.length)&&!J.V.v.includes(undefined)) vlMerke(J.id,J.V);
+  else vlFehl[J.id]="Stockfish konnte diese Partie hier nicht bewerten.";
+  const z=vlZiel(); if(z&&z.id===J.id) zeigeVerlauf();
+}
+/* läuft eine Analyse, füllt sie den Verlauf gleich mit, statt die Partie zweimal zu rechnen */
+function vlMitlauf(id,hist){
+  if(vlPasst(VL[id],hist.length)||vlPasst(VORAB[id],hist.length)||vlPasst(lsGet("schach-vl-"+id,null),hist.length)) return null;
+  if(vlJob&&vlJob.ctl) vlJob.ctl.abort();
+  const J=vlJob={id,hist,V:{v:[],b:{}},stand:-1};
+  return {punkt:(p,cp,b)=>vlPunkt(J,p,cp,b),ende:ab=>vlEnde(J,ab)};
+}
+function vlZiel(){
+  if(view==="bibliothek"&&bibTab==="partien"&&gv) return {id:gv.id,ply:gv.ply,brett:true};
+  if(view==="trainer"&&tmode==="ana"&&anaState&&anaState.gameId) return {id:anaState.gameId,ply:-1,brett:false};
+  return null;
+}
+const vlZug=(hist,p)=>(Math.floor((p-1)/2)+1)+((p-1)%2?"…":".")+de(hist[p-1]);
+const vlZahl=cp=>Math.abs(cp)>=MATT?"Matt":Math.abs(cp)>=15000?"Matt in "+(MATT-Math.abs(cp)):(cp<0?"−":"+")+(Math.abs(cp)/100).toFixed(1).replace(".",",");
+function vlLage(cp){
+  const a=Math.abs(cp), wer=cp>0?"Weiß":"Schwarz";
+  if(a>=MATT) return wer+" hat mattgesetzt";
+  if(a>=15000) return wer+" setzt matt in "+(MATT-a);
+  return a<40?"ausgeglichen":a<120?wer+" steht leicht besser":a<300?wer+" steht besser":a<700?wer+" steht klar besser":wer+" steht auf Gewinn";
+}
+function vlGenau(V,farbe){
+  let s=0,n=0;
+  for(let p=1;p<V.v.length;p++){
+    const weiss=p%2===1; if((weiss?"w":"b")!==farbe||V.v[p]==null||V.v[p-1]==null) continue;
+    const k=weiss?1:-1, weg=Math.max(0,(chance(V.v[p-1])-chance(V.v[p]))*k*50);
+    s+=Math.max(0,Math.min(100,103.1668*Math.exp(-.04354*weg)-3.1669)); n++;
+  }
+  return n?Math.round(s/n):null;
+}
+function vlEigene(V,g){
+  const o=[]; for(const k of Object.keys(V.b||{})){const p=+k; if(V.v[p]==null||V.v[p-1]==null||(p%2===1?"w":"b")!==g.farbe) continue; o.push({p,u:vlUrteil(V.v[p-1],V.v[p],p%2===1)})}
+  return o;
+}
+function vlSatz(V,hist,p){
+  if(p<=0) return "Tippe ins Diagramm, um zu einem Zug zu springen.";
+  const cp=V.v[p]; if(cp==null) return "Dieser Zug ist noch nicht bewertet.";
+  let t="Nach <b>"+esc(vlZug(hist,p))+"</b>: "+esc(vlLage(cp))+".";
+  if(V.b&&V.b[p]&&V.v[p-1]!=null){const u=vlUrteil(V.v[p-1],cp,p%2===1);t+=' <span class="vl-marke '+u.art+'">'+u.name+'</span>, besser war '+esc(de(V.b[p]))+"."}
+  return t;
+}
+function vlHTML(g,hist,V,ply,J){
+  const n=hist.length, x=p=>vlX(p,n)*10, pz=p=>vlX(p,n).toFixed(2)+"%";
+  let ende=-1; const pts=[];
+  for(let p=0;p<=n;p++){const c=V.v[p]; if(c==null) break; pts.push([x(p),vlY(c)]); ende=p}
+  const rand=ende===n?1000:x(ende);
+  /* Fläche zwischen Nulllinie und Kurve. Beim Wechsel der Seite kommt ein Punkt genau auf die Linie */
+  let hell="";
+  if(ende>=0){
+    const kurve=[[0,pts[0][1]]];
+    pts.concat([[rand,pts[ende][1]]]).forEach(q=>{const a=kurve[kurve.length-1]; if((a[1]-50)*(q[1]-50)<0){const t=(50-a[1])/(q[1]-a[1]);kurve.push([a[0]+t*(q[0]-a[0]),50])} kurve.push(q)});
+    const zug=f=>kurve.map(q=>q[0].toFixed(1)+","+f(q[1]).toFixed(2)).join(" ");
+    hell=`<polygon fill="var(--vl-w)" points="0,50 ${zug(y=>Math.min(y,50))} ${rand.toFixed(1)},50"/><polygon fill="var(--vl-s)" points="0,50 ${zug(y=>Math.max(y,50))} ${rand.toFixed(1)},50"/>`;
+  }
+  const rest=ende<n?`<rect x="${Math.max(0,rand||0).toFixed(1)}" y="0" width="${(1000-Math.max(0,rand||0)).toFixed(1)}" height="100" fill="var(--vl-rest)"/>`:"";
+  const eig=vlEigene(V,g), dots=eig.map(e=>`<i class="vl-dot ${e.u.art}" style="left:${pz(e.p)};top:${vlY(V.v[e.p]).toFixed(1)}%"></i>`).join("");
+  const zeiger=ply>=0&&V.v[ply]!=null?`<i class="vl-zeiger" style="left:${pz(ply)}"></i><i class="vl-knopf" style="left:${pz(ply)};top:${vlY(V.v[ply]).toFixed(1)}%"></i>`:"";
+  const ich=J?null:vlGenau(V,g.farbe), er=J?null:vlGenau(V,g.farbe==="w"?"b":"w"), pa=eig.filter(e=>e.u.art==="pz").length, fe=eig.length-pa;
+  const wert=ply>=0&&V.v[ply]!=null?vlZahl(V.v[ply]):"";
+  const fuss=J?`<p class="small muted">Stockfish rechnet: Zug ${Math.max(1,Math.ceil(J.stand/2))} von ${Math.ceil(hist.length/2)}. Das passiert nur einmal, danach bleibt der Verlauf gespeichert.</p>`
+   :`<div class="vl-zahlen"><div class="vl-z2"><span class="eyebrow">Genauigkeit</span><div><b>${ich==null?"–":ich+" %"}</b><span>du</span></div><div><b>${er==null?"–":er+" %"}</b><span>Gegner</span></div></div><div class="vl-z2"><span class="eyebrow">Deine Züge</span><div><b>${pa}</b><span><i class="pz"></i>Patzer</span></div><div><b>${fe}</b><span><i></i>Fehler</span></div></div></div>
+    <p class="small muted">Die gestrichelte Linie heißt ausgeglichen. Je höher der helle Berg, desto besser steht Weiß, je tiefer das dunkle Tal, desto besser steht Schwarz. Die Genauigkeit ist ein Schätzwert aus Stockfish.</p>`;
+  return `<div class="card vl"><div class="vl-kopf"><b>Partieverlauf</b><span class="nota muted" id="vl-wert">${esc(wert)}</span></div>
+   <div class="vl-feld" role="img" aria-label="Diagramm: Bewertung nach jedem Zug. Patzer ${pa}, Fehler ${fe}.">
+    <svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">${hell}${rest}<line x1="0" y1="50" x2="1000" y2="50" stroke="#fff" stroke-opacity=".75" stroke-width="1" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/></svg>
+    <span class="vl-lab w">Weiß besser</span><span class="vl-lab s">Schwarz besser</span>${dots}${zeiger}<span class="vl-tip" hidden></span></div>
+   ${ply>=0?(V.v[ply]!=null||!J?`<p class="vl-satz" id="vl-satz">${vlSatz(V,hist,ply)}</p>`:""):J?"":'<p class="vl-satz">Tippe ins Diagramm, dann öffnet sich die Partie an dieser Stelle.</p>'}${fuss}</div>`;
+}
+/* zeigt beim Ziehen übers Diagramm die Stellung sofort, ohne die ganze Seite neu aufzubauen */
+function vlVorschau(o,g,hist,V,p,brett){
+  const n=hist.length, feld=o.querySelector(".vl-feld"), tip=o.querySelector(".vl-tip"); if(!feld) return;
+  const cp=V.v[p], w=feld.clientWidth, xpx=vlX(p,n)/100*w;
+  if(tip){tip.hidden=false;tip.textContent=(p>0?vlZug(hist,p):"Start")+(cp!=null?"  "+vlZahl(cp):"");tip.style.left=Math.max(4,Math.min(w-tip.offsetWidth-4,xpx-tip.offsetWidth/2))+"px"}
+  if(!brett) return;
+  const z=o.querySelector(".vl-zeiger"), k=o.querySelector(".vl-knopf"), proz=vlX(p,n).toFixed(2)+"%";
+  if(z)z.style.left=proz; if(k&&cp!=null){k.style.left=proz;k.style.top=vlY(cp).toFixed(1)+"%"}
+  const wt=$("#vl-wert"), sa=$("#vl-satz"), st=$("#gv-stand"), b=$("#board");
+  if(wt)wt.textContent=cp!=null?vlZahl(cp):""; if(sa)sa.innerHTML=vlSatz(V,hist,p); if(st)st.textContent=p+"/"+hist.length;
+  document.querySelectorAll(".mv[data-ply]").forEach(m=>m.classList.toggle("on",+m.dataset.ply===p));
+  if(b){const c=new Chess();let lm=null;for(let i=0;i<p;i++)lm=c.move(hist[i]);drawBoard(b,c,{flip:g.farbe==="b",last:lm?[lm.from,lm.to]:null,onTap:null})}
+}
+function vlBinde(o,g,hist,ziel){
+  const V=()=>(vlJob&&vlJob.id===g.id?vlJob.V:VL[g.id]);
+  const plyAus=e=>{const f=o.querySelector(".vl-feld"), r=f.getBoundingClientRect();return Math.round(Math.max(0,Math.min(1,((e.clientX-r.left)/r.width*100-1.5)/97))*hist.length)};
+  let zuletzt=-1;
+  const zeig=(e,brett)=>{const p=plyAus(e); if(p===zuletzt) return; zuletzt=p; vlVorschau(o,g,hist,V(),p,brett&&ziel.brett)};
+  const weg=()=>{const t=o.querySelector(".vl-tip"); if(t)t.hidden=true; zuletzt=-1};
+  /* beim Tippen mit dem Finger noch nichts umstellen: es könnte auch der Anfang vom Scrollen sein */
+  let startX=0, startY=0;
+  o.onpointerdown=e=>{if(!e.target.closest(".vl-feld"))return;vlZieht=true;zuletzt=-1;startX=e.clientX;startY=e.clientY;try{o.setPointerCapture(e.pointerId)}catch(x){}zeig(e,e.pointerType==="mouse")};
+  o.onpointermove=e=>{if(vlZieht)zeig(e,true);else if(e.pointerType==="mouse"&&e.target.closest(".vl-feld"))zeig(e,false);else if(e.pointerType==="mouse")weg()};
+  o.onpointerleave=()=>{if(!vlZieht)weg()};
+  o.onpointerup=e=>{
+    if(!vlZieht)return; vlZieht=false; const p=plyAus(e), dy=Math.abs(e.clientY-startY);
+    /* senkrecht gewischt: das war Scrollen, kein Tippen */
+    if(e.pointerType!=="mouse"&&dy>14&&dy>Math.abs(e.clientX-startX)){if(ziel.brett)vlVorschau(o,g,hist,V(),gv.ply,true);weg();return}
+    if(ziel.brett){gv.ply=p;render()} else {bibTab="partien";lsSet("schach-bibtab","partien");gv={id:g.id,ply:p};go("bibliothek")}
+  };
+  o.onpointercancel=()=>{vlZieht=false;if(ziel.brett)vlVorschau(o,g,hist,V(),gv.ply,true);weg()};
+}
+function zeigeVerlauf(){
+  const o=$("#vl-slot"), ziel=vlZiel(); if(!o||!ziel||vlZieht) return;
+  const g=allGames().find(x=>x.id===ziel.id), J=g&&vlJob&&vlJob.id===g.id?vlJob:null, hist=J?J.hist:g&&gameHist(g); if(!hist) return;
+  const V=J?J.V:vlPasst(VL[g.id],hist.length)?VL[g.id]:vlPasst(VORAB[g.id],hist.length)?(VL[g.id]=VORAB[g.id]):null;
+  if(V){
+    o.innerHTML=vlHTML(g,hist,V,ziel.ply,J); vlBinde(o,g,hist,ziel);
+    if(!J) vlEigene(V,g).forEach(e=>{const m=document.querySelector('.mv[data-ply="'+e.p+'"]');if(m)m.classList.add(e.u.art)});
+    return;
+  }
+  if(vlFehl[g.id]){
+    o.innerHTML=`<div class="card vl"><b>Partieverlauf</b><p class="small muted">${esc(vlFehl[g.id])}</p><div class="row"><button class="btn s" type="button" id="vl-neu">Nochmal versuchen</button></div></div>`;
+    $("#vl-neu").onclick=()=>vlStart(g,hist); return;
+  }
+  o.innerHTML='<div class="card vl"><b>Partieverlauf</b><p class="small muted">Wird geladen …</p></div>';
+  vlHole(g.id,hist.length).then(W=>{const z=vlZiel(); if(!z||z.id!==g.id) return; if(W) zeigeVerlauf(); else vlStart(g,hist)});
+}
+function bindBibHead(v){v.querySelectorAll("[data-btab]").forEach(b=>b.onclick=()=>{bibTab=b.dataset.btab;lsSet("schach-bibtab",bibTab);gv=null;render();window.scrollTo(0,0)})}
+function bibHead(){return `<section><div class="seg" role="group" aria-label="Bereich"><button type="button" data-btab="uebungen" aria-pressed="${bibTab==="uebungen"}">Übungen</button><button type="button" data-btab="partien" aria-pressed="${bibTab==="partien"}">Meine Partien</button></div></section>`}
+/* ---------- Plan ---------- */
+function vPlan(v){
+  const cur=curWeek();
+  v.innerHTML=`<section><h1>8-Wochen-Plan</h1><p class="muted">Jeden Trainingstag: 10 Min Taktik, 15 Min Thema der Woche, 5 Min Endspiel. Hak ab, was du geschafft hast.</p></section>
+  <section>${D.wochen.map(w=>{const dn=weekDone(w.n), all=w.aufgaben.length;
+    return `<details class="week ${w.n===cur?"cur":""}" ${w.n===cur?"open":""}><summary><span class="wn">${w.n}</span><span style="min-width:0"><b>${esc(w.titel)}</b><div class="bar" style="margin-top:6px"><i style="width:${dn/all*100}%"></i></div></span><span class="nota muted">${dn}/${all}</span></summary>
+    <div class="wbody"><p class="small"><b>Ziel:</b> ${esc(w.ziel)}</p><p class="small muted">Täglich: Taktik ${esc(w.taktik)} · Endspiel ${esc(w.endspiel)}</p>
+    ${w.aufgaben.map((a,i)=>{const k=tkey(w.n,i);return `<div class="task ${S.plan[k]?"done":""}"><input class="ck" type="checkbox" id="${k}" data-k="${k}" ${S.plan[k]?"checked":""}><label for="${k}">${esc(a)}</label></div>`}).join("")}
+    <div class="row">${w.n===cur&&!S.weekOverride?'<span class="small muted">Diese Woche ist laut Kalender dran.</span>':w.n===cur?'<button class="btn s" type="button" data-auto="1">Woche wieder nach Kalender</button>':`<button class="btn s" type="button" data-wk="${w.n}">Als aktuelle Woche setzen</button>`}</div></div></details>`}).join("")}</section>`;
+  v.querySelectorAll("[data-k]").forEach(c=>c.onchange=()=>{S.plan[c.dataset.k]=c.checked;save();c.closest(".task").classList.toggle("done",c.checked);const d=c.closest("details");const n=+d.querySelector(".wn").textContent;d.querySelector(".nota").textContent=weekDone(n)+"/"+W(n).aufgaben.length;d.querySelector(".bar i").style.width=(weekDone(n)/W(n).aufgaben.length*100)+"%"});
+  v.querySelectorAll("[data-wk]").forEach(b=>b.onclick=()=>{S.weekOverride=+b.dataset.wk;save();render();toast("Woche "+b.dataset.wk+" ist jetzt deine aktuelle Woche")});
+  v.querySelectorAll("[data-auto]").forEach(b=>b.onclick=()=>{S.weekOverride=0;save();render()});
+}
+
+/* ---------- Fehler-Tagebuch ---------- */
+let fxTab=lsGet("schach-fxtab","offen"), fxSuche="", fxKat=lsGet("schach-fxkat","alle"), fxFarbe=lsGet("schach-fxfarbe","alle"), fxSort=lsGet("schach-fxsort","neu");
+const fxAuf=new Set(), FX_OHNE="ohne";
+const fxSw=id=>(D.schwaechen||[]).find(s=>s.id===id);
+const fxKatId=it=>fxSw(it.schwaeche)?it.schwaeche:FX_OHNE;
+const fxKatName=id=>{const s=fxSw(id);return s?s.titel:"Ohne Kategorie"};
+function fxKats(list){
+  const ids=(D.schwaechen||[]).map(s=>s.id).filter(id=>list.some(i=>fxKatId(i)===id));
+  if(list.some(i=>fxKatId(i)===FX_OHNE)) ids.push(FX_OHNE);
+  return ids;
+}
+const fxFarbTag=it=>it.seite?`<span class="tag ${it.seite==="w"?"w":"s"}">${it.seite==="w"?"Weiß":"Schwarz"}</span>`:"";
+const fxFen=it=>{const c=it.fen?new Chess(it.fen):new Chess();(it.line||[]).forEach(m=>c.move(m));return c.fen()};
+function fxHead(){
+  const b=(k,t,n)=>`<button type="button" data-fx="${k}" aria-pressed="${fxTab===k}">${t}${n==null?"":` <small>${n}</small>`}</button>`;
+  return `<section><div class="seg drei" role="group" aria-label="Bereich">${b("offen","Offen",offeneItems().length)}${b("fertig","Abgeschlossen",fertigeItems().length)}${b("uebersicht","Übersicht")}</div></section>`;
+}
+function vFehler(v){
+  if(!["offen","fertig","uebersicht"].includes(fxTab)) fxTab="offen";
+  ({offen:fxOffen,fertig:fxFertig,uebersicht:fxUebersicht})[fxTab](v);
+  v.querySelectorAll("[data-fx]").forEach(b=>b.onclick=()=>{fxTab=b.dataset.fx;lsSet("schach-fxtab",fxTab);render();window.scrollTo(0,0)});
+}
+function fxEinzeln(v){
+  v.querySelectorAll("[data-ueb]").forEach(b=>b.onclick=()=>{const it=allItems().find(i=>i.id===b.dataset.ueb);if(it)startReview([it],"Einzelner Fehler")});
+  v.querySelectorAll("[data-zu]").forEach(b=>b.onclick=()=>{S.fertig[b.dataset.zu]={d:today(),wie:"hand"};save();render();toast("Abgeschlossen")});
+  v.querySelectorAll("[data-auf]").forEach(b=>b.onclick=()=>{const id=b.dataset.auf;delete S.fertig[id];if(S.srs[id])S.srs[id].due=today();save();render();toast("Zurück bei Offen")});
+  v.querySelectorAll("[data-del-c]").forEach(b=>b.onclick=()=>{const id=b.dataset.delC;S.custom=(S.custom||[]).filter(c=>c.id!==id);delete S.srs[id];delete S.fertig[id];save();render()});
+}
+function fxOffen(v){
+  const items=offeneItems(), due=dueItems(), fertig=fertigeItems().length, kats=fxKats(items);
+  const karte=it=>{const r=S.srs[it.id], spaeter=r&&r.due>today(), eigen=(S.custom||[]).some(c=>c.id===it.id);
+    return `<div class="fx-item"><p class="fx-frage">${esc(it.frage)}</p><div class="meta">${it.quelle?`<span class="tag">${esc(it.quelle)}</span>`:""}${fxFarbTag(it)}${spaeter?`<span class="tag">wieder am ${fmt(r.due)}</span>`:""}</div>
+     <div class="row"><button class="btn p s" type="button" data-ueb="${esc(it.id)}">Üben</button><button class="btn s" type="button" data-zu="${esc(it.id)}">Abschließen</button>${eigen?`<button class="btn s" type="button" data-del-c="${esc(it.id)}">Löschen</button>`:""}</div></div>`};
+  v.innerHTML=fxHead()+`<section><h1>Offene Fehler</h1><p class="muted">Löst du eine Aufgabe beim ersten Versuch, ist der Fehler abgeschlossen und wandert ins Archiv. Falsch heißt: morgen nochmal.</p>
+   ${items.length?`<div class="row"><button class="btn p" type="button" id="rev-due" ${due.length?"":"disabled"}>${due.length?due.length+" fällige üben":"Heute nichts fällig"}</button><button class="btn" type="button" id="rev-all">Alle ${items.length} offenen üben</button></div>`
+   :`<div class="fx-leer"><b>Alles abgearbeitet.</b><p class="small">${fertig} Fehler sind abgeschlossen. Neue Fehler aus deinen Partien landen automatisch hier.</p></div>`}</section>
+  ${items.length?`<section><h2>Nach Thema <small>${kats.length}</small></h2>${kats.map(k=>{const its=items.filter(i=>fxKatId(i)===k);
+    return `<details class="fx-gruppe" data-gr="${esc(k)}" ${fxAuf.has(k)?"open":""}><summary><span style="min-width:0">${esc(fxKatName(k))}</span><span class="fx-zahl">${its.length}</span></summary>
+     <div class="fx-body"><div class="row"><button class="btn s" type="button" data-sw="${esc(k)}">Alle ${its.length} üben</button></div>${its.map(karte).join("")}</div></details>`}).join("")}</section>`:""}
+  <section><h2>Eigene Notizen <small>${(S.notes||[]).length}</small></h2>
+   <div class="card"><label for="note-in" class="small muted">Was ist dir in einer Partie passiert? Der Trainer sieht diese Notizen.</label>
+   <div class="row" style="flex-wrap:nowrap"><input type="text" id="note-in" placeholder="z. B. Gabel auf f7 übersehen"><button class="btn p" type="button" id="note-add">Speichern</button></div>
+   ${(S.notes||[]).slice().reverse().map((n,i)=>`<div class="weak small"><span>${esc(n.text)} <span class="muted">· ${fmt(n.d)}</span></span><button class="btn s" type="button" data-del-note="${S.notes.length-1-i}" aria-label="Notiz löschen">Löschen</button></div>`).join("")||'<p class="empty">Noch keine eigenen Notizen.</p>'}</div>
+  </section>
+  ${(S.fragen||[]).length?`<section><h2>Deine Fragen <small>${S.fragen.length}</small></h2><div class="card fr-karte">${S.fragen.slice().reverse().map(f=>`<details class="fr-item"><summary>${esc(f.f)}</summary><span class="fr-wo">${fmt(f.d)}${f.q?" · "+esc(f.q):""}</span><div class="fr-a">${md(f.a)}</div></details>`).join("")}</div></section>`:""}`;
+  const rd=$("#rev-due"), ra=$("#rev-all");
+  if(rd) rd.onclick=()=>startReview(due,"Fällig");
+  if(ra) ra.onclick=()=>startReview(items,"Alle offenen");
+  v.querySelectorAll("details[data-gr]").forEach(d=>d.addEventListener("toggle",()=>{d.open?fxAuf.add(d.dataset.gr):fxAuf.delete(d.dataset.gr)}));
+  v.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>startReview(items.filter(i=>fxKatId(i)===b.dataset.sw),fxKatName(b.dataset.sw)));
+  const add=()=>{const t=$("#note-in").value.trim(); if(!t) return; S.notes=[...(S.notes||[]),{d:today(),text:t}].slice(-60); save(); render(); toast("Notiz gespeichert")};
+  $("#note-add").onclick=add; $("#note-in").onkeydown=e=>{if(e.key==="Enter")add()};
+  v.querySelectorAll("[data-del-note]").forEach(b=>b.onclick=()=>{S.notes.splice(+b.dataset.delNote,1);save();render()});
+  fxEinzeln(v);
+}
+function fxGefiltert(){
+  const woerter=fxSuche.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return fertigeItems().filter(it=>{
+    if(fxKat!=="alle"&&fxKatId(it)!==fxKat) return false;
+    if(fxFarbe!=="alle"&&it.seite!==fxFarbe) return false;
+    if(!woerter.length) return true;
+    const heu=[it.frage,it.warum,it.quelle,fxKatName(fxKatId(it)),...(it.antwort||[]),...(it.antwort||[]).map(de)].join(" ").toLowerCase();
+    return woerter.every(w=>heu.includes(w));
+  });
+}
+function fxFertig(v){
+  const alle=allItems().length, fertig=fertigeItems(), kats=fxKats(fertig);
+  if(fxKat!=="alle"&&!kats.includes(fxKat)) fxKat="alle";
+  const opt=(wert,text,an)=>`<option value="${esc(wert)}" ${wert===an?"selected":""}>${esc(text)}</option>`;
+  v.innerHTML=fxHead()+`<section><h1>Abgeschlossene Fehler</h1><p class="muted">${fertig.length} von ${alle} abgearbeitet. Diese Fehler kommen nicht mehr von selbst wieder, hier kannst du sie jederzeit nachschlagen.</p>
+   <div class="bar"><i style="width:${alle?fertig.length/alle*100:0}%"></i></div></section>
+  ${fertig.length?`<section class="card fx-filter"><input type="text" id="fx-such" value="${esc(fxSuche)}" placeholder="Suchen, z. B. Gabel, Matt, Sxe3, Almiraz" aria-label="Abgeschlossene Fehler durchsuchen" autocomplete="off" enterkeyhint="search">
+   <div class="fx-wahl"><label>Kategorie<select id="fx-kat">${opt("alle","Alle Kategorien",fxKat)}${kats.map(k=>opt(k,fxKatName(k),fxKat)).join("")}</select></label>
+   <label>Farbe<select id="fx-farbe">${opt("alle","Beide",fxFarbe)}${opt("w","Weiß",fxFarbe)}${opt("b","Schwarz",fxFarbe)}</select></label>
+   <label>Ordnen<select id="fx-sort">${opt("neu","Neueste zuerst",fxSort)}${opt("alt","Älteste zuerst",fxSort)}${opt("kat","Nach Kategorie",fxSort)}${opt("partie","Nach Partie",fxSort)}</select></label></div></section>
+   <div id="fx-liste" style="display:flex;flex-direction:column;gap:14px"></div>`
+  :`<div class="fx-leer"><b>Noch nichts abgeschlossen.</b><p class="small">Löse einen offenen Fehler beim ersten Versuch oder tippe dort auf Abschließen, dann landet er hier.</p></div>`}`;
+  if(!fertig.length) return;
+  const such=$("#fx-such");
+  such.oninput=()=>{fxSuche=such.value;fxListe()};
+  $("#fx-kat").onchange=e=>{fxKat=e.target.value;lsSet("schach-fxkat",fxKat);fxListe()};
+  $("#fx-farbe").onchange=e=>{fxFarbe=e.target.value;lsSet("schach-fxfarbe",fxFarbe);fxListe()};
+  $("#fx-sort").onchange=e=>{fxSort=e.target.value;lsSet("schach-fxsort",fxSort);fxListe()};
+  fxListe();
+}
+function fxEintrag(it){
+  return `<details class="fx-gruppe" data-it="${esc(it.id)}"><summary><span style="min-width:0"><span class="fx-frage" style="font-weight:600">${esc(it.frage)}</span><span class="meta" style="margin-top:4px;font-weight:400"><span class="tag">${esc(fxKatName(fxKatId(it)))}</span>${it.quelle?`<span class="tag">${esc(it.quelle)}</span>`:""}${fxFarbTag(it)}</span></span><span class="fx-zahl">${(S.fertig[it.id]||{}).d?fmt(S.fertig[it.id].d):""}</span></summary><div class="fx-body"></div></details>`;
+}
+function fxInhalt(it){
+  const r=S.srs[it.id]||{}, f=S.fertig[it.id]||{}, eigen=(S.custom||[]).some(c=>c.id===it.id);
+  let fen=""; try{fen=fxFen(it)}catch(e){}
+  const kam=[(r.r||0)+"× richtig",(r.w||0)+"× falsch",(f.wie==="hand"?"von Hand abgeschlossen":"gelöst")+(f.d?" am "+fmt(f.d):"")].join(" · ");
+  return `<div class="fx-stellung">${fen?FAKT.brett(fen,it.seite||fen.split(" ")[1],(it.antwort||[])[0]):""}<div><b>Lösung: <span class="nota">${esc((it.antwort||[]).map(de).join(" oder "))}</span></b><p class="small">${esc(it.warum||"")}</p><p class="small muted">${esc(kam)}</p></div></div>
+   <div class="row"><button class="btn p s" type="button" data-ueb="${esc(it.id)}">Nochmal üben</button><button class="btn s" type="button" data-auf="${esc(it.id)}">Zurück zu Offen</button>${eigen?`<button class="btn s" type="button" data-del-c="${esc(it.id)}">Löschen</button>`:""}</div>`;
+}
+function fxListe(){
+  const o=$("#fx-liste"); if(!o) return;
+  const list=fxGefiltert(), dat=it=>(S.fertig[it.id]||{}).d||"";
+  if(!list.length){o.innerHTML='<p class="empty">Nichts gefunden. Probier ein anderes Wort oder setz die Filter zurück.</p>';return}
+  const nachDatum=(a,b)=>dat(b).localeCompare(dat(a));
+  let gruppen;
+  if(fxSort==="kat") gruppen=fxKats(list).map(k=>[fxKatName(k),list.filter(i=>fxKatId(i)===k).sort(nachDatum)]);
+  else if(fxSort==="partie"){const m=new Map();list.slice().sort(nachDatum).forEach(i=>{const q=i.quelle||"Ohne Partie";if(!m.has(q))m.set(q,[]);m.get(q).push(i)});gruppen=[...m.entries()]}
+  else gruppen=[["",list.slice().sort(fxSort==="alt"?(a,b)=>dat(a).localeCompare(dat(b)):nachDatum)]];
+  o.innerHTML=`<div class="row"><span class="small muted">${list.length} Treffer</span><button class="btn s" type="button" id="fx-alle">${list.length===1?"Nochmal üben":"Diese "+list.length+" nochmal üben"}</button></div>`+
+   gruppen.map(([t,its])=>`<section>${t?`<h2>${esc(t)} <small>${its.length}</small></h2>`:""}${its.map(fxEintrag).join("")}</section>`).join("");
+  $("#fx-alle").onclick=()=>startReview(list,"Auffrischen");
+  o.querySelectorAll("details[data-it]").forEach(d=>d.addEventListener("toggle",()=>{
+    const b=d.querySelector(".fx-body"); if(!d.open||b.firstChild) return;
+    const it=allItems().find(i=>i.id===d.dataset.it); if(it){b.innerHTML=fxInhalt(it);fxEinzeln(b)}
+  }));
+}
+function fxUebersicht(v){
+  const items=allItems(), cus=S.custom||[], acc=accuracy();
+  const kats=[...(D.schwaechen||[]),...(items.some(i=>fxKatId(i)===FX_OHNE)?[{id:FX_OHNE,titel:"Ohne Kategorie",text:"Gespeicherte Fehler aus deinen Partien, die noch keinem Thema zugeordnet sind.",anzahl:0}]:[])];
+  const zeilen=kats.map(s=>{const its=items.filter(i=>fxKatId(i)===s.id);
+    return {s,its,a:accuracy(i=>fxKatId(i)===s.id),wie:(s.anzahl||0)+cus.filter(c=>fxKatId(c)===s.id).length,offen:its.filter(i=>!istFertig(i)).length}}).sort((a,b)=>b.wie-a.wie);
+  const max=Math.max(1,...zeilen.map(z=>z.wie)), summe=zeilen.reduce((n,z)=>n+z.wie,0);
+  v.innerHTML=fxHead()+`<section><h1>Übersicht</h1><p class="muted">Wie oft dir welcher Fehler passiert ist. Das bleibt stehen, auch wenn die Aufgaben dazu längst abgeschlossen sind.</p>
+   <div class="stats"><div class="stat"><b>${summe}</b><span>Fehler notiert</span></div><div class="stat"><b>${offeneItems().length}</b><span>Aufgaben offen</span></div><div class="stat"><b>${fertigeItems().length}</b><span>abgeschlossen</span></div><div class="stat"><b>${acc.p==null?"–":acc.p+" %"}</b><span>richtig gelöst</span></div></div></section>
+  <section><h2>So oft passiert</h2>${zeilen.map(z=>{const aus=[...new Set(z.its.map(i=>i.quelle).filter(q=>/^vs /.test(q||"")).map(q=>q.split(" · ")[0]))];
+    return `<div class="card fx-balken"><div class="fx-kopf"><b>${esc(z.s.titel)}</b><b>${z.wie}×</b></div><div class="bar"><i style="width:${z.wie/max*100}%"></i></div>
+     <p class="small muted">${esc(z.s.text)}</p>
+     <div class="row small muted">${z.offen} offen · ${z.its.length-z.offen} abgeschlossen${z.a.p!=null?" · "+z.a.p+" % richtig":""}${z.offen?` <button class="btn s" type="button" data-sw="${esc(z.s.id)}">Offene üben</button>`:""}</div>
+     ${aus.length?`<p class="small muted">Aus: ${esc(aus.join(", "))}</p>`:""}</div>`}).join("")}</section>`;
+  v.querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>startReview(offeneItems().filter(i=>fxKatId(i)===b.dataset.sw),fxKatName(b.dataset.sw)));
+}
+
+/* ---------- Brett ---------- */
+const FILL={k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}, OUT={k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"};
+const NAME={k:"König",q:"Dame",r:"Turm",b:"Läufer",n:"Springer",p:"Bauer"}, FILES="abcdefgh";
+let ro=null;
+function drawBoard(el,game,o){
+  el.innerHTML=""; const flip=o.flip;
+  let targets={};
+  if(o.sel) game.moves({square:o.sel,verbose:true}).forEach(m=>targets[m.to]=m.captured?"cap":"dot");
+  for(let r=1;r<=8;r++)for(let f=0;f<8;f++){
+    const s=FILES[f]+r, b=document.createElement("button");
+    const col=flip?7-f:f, row=flip?r-1:8-r;
+    b.className="sq "+((f+r)%2?"d":"l"); b.type="button";
+    b.style.left=(col*12.5)+"%"; b.style.top=(row*12.5)+"%";
+    if(o.last&&o.last.includes(s)) b.classList.add("hl");
+    if(o.sel===s) b.classList.add("sel");
+    if(o.marks&&o.marks[s]) b.classList.add(o.marks[s]);
+    const p=game.get(s);
+    b.setAttribute("aria-label",s+(p?" "+(p.color==="w"?"weißer ":"schwarzer ")+NAME[p.type]:""));
+    if(p){const d=document.createElement("span");d.className="pc "+p.color;d.innerHTML='<span class="f">'+FILL[p.type]+'︎</span><span class="o">'+OUT[p.type]+'︎</span>';b.appendChild(d)}
+    if(targets[s]){const d=document.createElement("i");d.className="dot"+(targets[s]==="cap"?" cap":"");b.appendChild(d)}
+    if(col===0){const c=document.createElement("span");c.className="coord r";c.textContent=r;b.appendChild(c)}
+    if(row===7){const c=document.createElement("span");c.className="coord f";c.textContent=FILES[f];b.appendChild(c)}
+    b.onclick=()=>o.onTap&&o.onTap(s); el.appendChild(b);
+  }
+  const size=()=>el.style.setProperty("--pc",(el.clientWidth/8*0.82)+"px"); size();
+  if(ro) ro.disconnect(); if(window.ResizeObserver){ro=new ResizeObserver(size);ro.observe(el)}
+}
+function movesText(h,startN,startBlack){let t="",n=startN||1,black=!!startBlack;h.forEach((m,i)=>{if(!black){t+=n+"."+de(m)+" "}else{t+=(i===0?n+"…":"")+de(m)+" ";n++}black=!black});return t.trim()}
+
+/* ---------- Wiederholung ---------- */
+function startReview(list,label){
+  if(typeof Chess==="undefined"){toast("Das Brett konnte nicht laden. Seite neu öffnen.");return}
+  if(!list.length) return;
+  review={list:list.slice(),pos:0,label,res:{},tries:0,phase:"ask",sel:null,marks:{},game:null,last:null,fb:""};
+  loadItem(); render(); window.scrollTo(0,0);
+}
+function loadItem(){
+  const it=review.list[review.pos]; const g=it.fen?new Chess(it.fen):new Chess(); let lm=null;
+  if(it.line) it.line.forEach(m=>{lm=g.move(m)});
+  Object.assign(review,{game:g,last:lm?[lm.from,lm.to]:null,sel:null,marks:{},tries:0,phase:"ask",fb:"",turned:false,tried:null});
+}
+function grade(it,ok){
+  if(it.id in review.res) return; review.res[it.id]=ok;
+  const r=S.srs[it.id]||{box:0,r:0,w:0};
+  if(ok){r.box=Math.min(IV.length-1,(r.box||0)+1);r.r=(r.r||0)+1;r.due=addDays(today(),IV[r.box])}
+  else{r.box=0;r.w=(r.w||0)+1;r.due=addDays(today(),1)}
+  S.srs[it.id]=r;
+  if(ok&&!istFertig(it)){S.fertig[it.id]={d:today(),wie:"geloest"};review.zu=(review.zu||0)+1}
+  else if(!ok&&istFertig(it)){delete S.fertig[it.id];review.auf=(review.auf||0)+1}
+  save();
+}
+function renderReview(v){
+  const R=review, it=R.list[R.pos];
+  if(!it){return reviewEnd(v)}
+  const g=R.game, stm=(it.fen?new Chess(it.fen):(()=>{const x=new Chess();(it.line||[]).forEach(m=>x.move(m));return x})()).turn();
+  const me=it.seite||stm, flip=(me==="b")!==!!R.turned, w=stm==="w"; const sw=(D.schwaechen||[]).find(s=>s.id===it.schwaeche);
+  v.innerHTML=`<section><div class="row" style="justify-content:space-between"><span class="eyebrow">${esc(R.label||"Wiederholung")} · ${R.pos+1} von ${R.list.length}</span><span class="row"><button class="btn s" type="button" id="rev-flip">Brett drehen</button><button class="btn s" type="button" id="rev-x">Beenden</button></span></div>
+   <div class="bar"><i style="width:${R.pos/R.list.length*100}%"></i></div></section>
+   <div class="trainer-box"><div class="board" id="board" role="grid" aria-label="Schachbrett"></div>
+   <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><div class="card">
+    <div class="row">${sw?`<span class="tag">${esc(sw.titel)}</span>`:""}<span class="tag">${esc(it.quelle||"")}</span></div>
+    ${it.line?`<div class="moves">${movesText(it.line)}</div>`:""}
+    <p class="ask">${esc(it.frage)}</p>
+    <span class="turn"><i style="background:${w?"#fbfaf6":"#1b1f1c"}"></i>${w?"Weiß":"Schwarz"} zieht · Du siehst das Brett als ${flip?"Schwarz":"Weiß"}</span></div>
+    <div id="fb">${R.fb||'<div class="fb info"><p>Erst Schachs, Schlagzüge und Drohungen prüfen, dann ziehen.</p></div>'}</div>${notizLeiste(R)}</div></div>`;
+  drawBoard($("#board"),g,{flip,last:R.last,sel:R.sel,marks:R.marks,onTap:tapReview});
+  $("#rev-x").onclick=()=>{ if((R.notes||[]).length){R.abbruch=true;R.pos=R.list.length;render()} else {review=null;render()} };
+  $("#rev-flip").onclick=()=>{review.turned=!review.turned;render()};
+  bindNotiz();
+  bindFb();
+}
+function bindFb(){
+  const n=$("#rv-next"); if(n) n.onclick=()=>{review.pos++; if(review.pos<review.list.length) loadItem(); render()};
+  const r=$("#rv-retry"); if(r) r.onclick=()=>{loadItem();render()};
+  const s=$("#rv-sol"); if(s) s.onclick=()=>{const it=review.list[review.pos];loadItem();const m=review.game.move(it.antwort[0],{sloppy:true});grade(it,false);review.phase="done";review.last=[m.from,m.to];review.marks={[m.to]:"ok"};review.fb=fbHTML("info","Lösung: "+de(m.san),it.warum,true);render()};
+}
+const fbHTML=(k,t,x,next,extra)=>`<div class="fb ${k}"><b>${esc(t)}</b><p>${esc(x)}</p>${extra?`<p class="small"><b>${esc(extra)}</b></p>`:""}<div class="row">${next?'<button class="btn p" type="button" id="rv-next">Weiter</button>':'<button class="btn p" type="button" id="rv-retry">Nochmal</button><button class="btn" type="button" id="rv-sol">Lösung zeigen</button>'}</div></div>`;
+function tapReview(s){
+  const R=review; if(R.phase!=="ask") return; const g=R.game, p=g.get(s);
+  if(R.sel){const mv=g.moves({square:R.sel,verbose:true}).find(m=>m.to===s); if(mv) return tryMove(mv)}
+  if(p&&p.color===g.turn()){R.sel=R.sel===s?null:s} else R.sel=null;
+  render();
+}
+function tryMove(mv){
+  const R=review, it=R.list[R.pos]; R.sel=null; const fenBefore=R.game.fen();
+  const m=R.game.move({from:mv.from,to:mv.to,promotion:"q"}); R.last=[m.from,m.to];
+  const san=strip(m.san), ans=it.antwort.map(strip); R.tried={fenBefore,san:m.san,ok:ans.includes(san)};
+  const okMap={}, badMap={}; for(const k in (it.ok||{})) okMap[strip(k)]=it.ok[k]; for(const k in (it.falsch||{})) badMap[strip(k)]=it.falsch[k];
+  if(ans.includes(san)){const neu=R.tries===0&&!istFertig(it)&&!(it.id in R.res);grade(it,R.tries===0);R.marks={[m.to]:"ok"};R.phase="done";R.fb=fbHTML("good","Richtig: "+de(m.san),it.warum,true,neu?"Damit ist dieser Fehler abgeschlossen.":"")}
+  else{R.tries++;grade(it,false);R.marks={[m.to]:"no"};R.phase="wrong";
+    if(okMap[san]) R.fb=fbHTML("warn","Spielbar, aber nicht der beste: "+de(m.san),okMap[san]);
+    else if(badMap[san]) R.fb=fbHTML("bad","Fehler: "+de(m.san),badMap[san]);
+    else R.fb=fbHTML("bad","Nicht der beste Zug: "+de(m.san),"Schau noch einmal: Was droht, was hängt, welche Schachs gibt es?");}
+  render();
+}
+function reviewEnd(v){
+  const R=review, ok=Object.values(R.res).filter(Boolean).length, n=R.abbruch?Object.keys(R.res).length:R.list.length;
+  if(R.label==="Heute"&&!R.stepped&&!R.abbruch){R.stepped=true;setStep("wdh",true)}
+  v.innerHTML=`<section class="card"><span class="eyebrow">${esc(R.label||"Wiederholung")} fertig</span><h1>${ok} von ${n} beim ersten Versuch</h1>
+   <p class="muted">${[R.zu?(R.zu===1?"1 Fehler ist":R.zu+" Fehler sind")+" jetzt abgeschlossen.":"",R.auf?(R.auf===1?"1 abgeschlossener Fehler ist":R.auf+" abgeschlossene Fehler sind")+" wieder offen.":"",n-ok>0?"Die falschen kommen morgen wieder. So prägt sich das Muster ein.":R.zu?"":"Sitzt weiterhin."].filter(Boolean).join(" ")}</p>
+   <div class="row"><button class="btn p" type="button" id="rv-done">Fertig</button><button class="btn" type="button" id="rv-chat">Mit dem Trainer besprechen</button></div></section>${notizBlock(R)}`;
+  $("#rv-done").onclick=()=>{review=null;render()};
+  const st=$("#nt-stopp"); if(st) st.onclick=()=>{if(R.ctl)R.ctl.abort()};
+  const no=$("#nt-nochmal"); if(no) no.onclick=()=>{(R.notes||[]).forEach(x=>{if(x.st==="fehler")x.st="offen"});loeseNotizen(R)};
+  $("#rv-chat").onclick=()=>{const wrong=R.list.filter(i=>!R.res[i.id]).map(i=>i.frage+" (Lösung "+de(i.antwort[0])+")");review=null;go("trainer");
+    setTimeout(()=>send("Ich habe gerade Fehler wiederholt: "+ok+" von "+n+" richtig."+(wrong.length?" Falsch waren: "+wrong.join("; ")+". Erklär mir kurz das Muster dahinter.":" Was soll ich als Nächstes üben?")),50)};
+  if((R.notes||[]).some(x=>x.st==="offen")) loeseNotizen(R);
+}
+/* ---------- Fragen in der Wiederholung: erst merken, am Ende auflösen ---------- */
+const notizText=n=>n.st==="laeuft"&&!n.a?'<p class="fr-still">'+esc(n.stand||"Denkt nach …")+'</p>':md(n.a||"")+(n.st==="fehler"?'<p class="fr-still">'+esc(n.fehler||"Das hat nicht geklappt.")+'</p>':"");
+function notizPh(R){
+  if(R.tried) return (R.tried.ok?"Warum ":"Warum nicht ")+de(R.tried.san)+"?";
+  return R.phase==="done"?"Warum ist das die Lösung?":"Was ist hier die Idee?";
+}
+function notizLeiste(R){
+  const n=(R.notes||[]).length;
+  return `<form class="fr-leiste" id="nt-form"><div class="fr-zeile"><input type="text" id="nt-in" enterkeyhint="send" autocomplete="off" maxlength="300" aria-label="Frage für den Trainer merken" placeholder="${esc(notizPh(R))}" value="${esc(R.draft||"")}"><button class="fr-go" type="submit">Merken${n?" ("+n+")":""}</button></div></form>`;
+}
+function bindNotiz(){
+  const f=$("#nt-form"); if(!f) return;
+  const R=review, inp=$("#nt-in");
+  inp.oninput=()=>{R.draft=inp.value};
+  f.onsubmit=e=>{
+    e.preventDefault();
+    const it=R.list[R.pos], c=it.fen?new Chess(it.fen):new Chess(); (it.line||[]).forEach(m=>c.move(m));
+    (R.notes=R.notes||[]).push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),f:inp.value.trim()||inp.placeholder,wo:"Aufgabe "+(R.pos+1)+(it.quelle?" · "+it.quelle:""),unten:it.seite||c.turn(),
+      aufgabe:it.frage,quelle:it.quelle||"",zuege:it.line||[],fen:c.fen(),versuch:R.tried?R.tried.san:"",richtig:!!(R.tried&&R.tried.ok),antwort:it.antwort,warum:it.warum,st:"offen",a:""});
+    R.draft=""; render(); toast("Gemerkt. Die Antwort kommt am Ende.");
+  };
+}
+function notizBlock(R){
+  const N=R.notes||[]; if(!N.length) return "";
+  const laeuft=N.some(n=>n.st==="laeuft"), fehler=N.some(n=>n.st==="fehler");
+  return `<section class="card fr-karte"><div class="fr-kopf"><b>Deine Fragen</b>${laeuft?'<button class="fr-link" type="button" id="nt-stopp">Stopp</button>':fehler?'<button class="fr-link" type="button" id="nt-nochmal">Nochmal</button>':""}</div>
+   ${N.map(n=>`<details class="fr-item" open><summary>${esc(n.f)}</summary><span class="fr-wo">${esc(n.wo)}</span>${FAKT.brett(n.fen,n.unten,n.versuch)}<div class="fr-a" id="nt-${n.id}">${notizText(n)}</div>${n.sf&&n.st!=="laeuft"?`<p class="fr-sf">${esc(n.sf)}</p>`:""}</details>`).join("")}</section>`;
+}
+function notizPrompt(liste){
+  let t=trainerContext()+"\n\nJustin hat sich während einer Übungsrunde in seiner App Fragen notiert. Die Runde ist vorbei, du darfst alles auflösen. Die Lösung jeder Aufgabe ist geprüft, halte dich daran.";
+  liste.forEach((n,i)=>{
+    t+="\n\nFrage "+(i+1)+": "+n.f+"\nAufgabe: "+n.aufgabe+(n.quelle?" ("+n.quelle+")":"")+"\nZüge bis zur Aufgabe (englische SAN): "+(n.zuege.join(" ")||"keine, Stellung ist vorgegeben")+"\nStellung der Aufgabe (FEN): "+n.fen;
+    if(n.versuch) t+="\nSein Versuch: "+n.versuch+(n.richtig?" (richtig)":" (nicht die Lösung)");
+    t+="\nGeprüfte Lösung: "+n.antwort.join(" oder ")+"\nErklärung dazu: "+n.warum+"\n"+FAKT.stellung(n.fen);
+    if(n.sfText) t+="\n"+n.sfText;
+  });
+  return t+"\n\nBeantworte jede Frage einzeln auf Deutsch in höchstens 5 kurzen Sätzen, deutsche Notation. Erst die direkte Antwort, dann der Grund. Für diese Fragen hast du Stockfish: Die Werte in den Daten und aus dem Werkzeug zuege_testen stammen aus einer schnellen Suche, + ist gut für Weiß. Für Taktik sind sie verlässlich, Unterschiede unter etwa einem Bauern sind Rauschen. Erkläre in Worten, Zahlen nur kurz. Prüfe jede Variante, die du nennst, vorher mit zuege_testen, wenn es dir zur Verfügung steht. Ein Repertoirezug muss nicht der Stockfish-Bestzug sein: Liegt er höchstens etwa einen Bauern dahinter, ist er für Justin richtig und du nennst keinen angeblich besseren Zug. Schreib vor jede Antwort eine eigene Zeile mit === und der Nummer, also === 1, dann die Antwort, dann === 2 und so weiter. Keine Einleitung, kein Schlusswort.";
+}
+async function loeseNotizen(R){
+  const liste=(R.notes||[]).filter(n=>n.st==="offen"); if(!liste.length) return;
+  const zeig=n=>{const o=document.getElementById("nt-"+n.id); if(o)o.innerHTML=notizText(n)};
+  const neu=()=>{if(review===R)render()};
+  liste.forEach(n=>Object.assign(n,{st:"laeuft",a:"",stand:"Stockfish rechnet …"})); neu();
+  const ctl=R.ctl=new AbortController();
+  let fehler=null;
+  try{
+    const sample=await getSample();
+    if(!sample) throw {code:"fehlt"};
+    for(const n of liste){
+      if(ctl.signal.aborted) throw {code:"cancelled"};
+      if(n.sfText===undefined){const g=await FAKT.gutachten(n.fen,n.versuch);n.sfText=g?g.text:"";n.sf=g?g.kurz:"Ohne Stockfish beantwortet"}
+    }
+    if(ctl.signal.aborted) throw {code:"cancelled"};
+    liste.forEach(n=>{n.stand="";zeig(n)});
+    const lim=await sample.limits().catch(()=>null);
+    const opt={signal:ctl.signal,onText:({text})=>FAKT.verteile(liste,text,false,zeig)};
+    if(lim&&lim.tools) opt.tools=[FAKT.pruefer(()=>liste.forEach(n=>{n.stand="Prüft Varianten am Brett …";if(!n.a)zeig(n)}))];
+    const r=await sample(notizPrompt(liste),opt);
+    FAKT.verteile(liste,r.text,true,zeig);
+  }catch(e){ fehler=e||{}; if(e&&e.text)FAKT.verteile(liste,e.text,false,zeig) }
+  const txt={fehlt:"Der Trainer ist noch nicht eingerichtet. Tippe oben rechts auf den Knopf und gib deinen Zugangscode ein.",not_granted:"Der Zugangscode stimmt nicht. Tippe oben rechts auf den Knopf und gib ihn neu ein.",rate_limited:"Gerade zu viele Anfragen oder dein Limit ist erreicht. Später nochmal.",cancelled:"Abgebrochen."};
+  liste.forEach(n=>{ if(fehler){n.st="fehler";n.fehler=txt[fehler.code]||"Das hat nicht geklappt."} else n.st="fertig" });
+  if(!fehler){ S.fragen=[...(S.fragen||[]),...liste.map(n=>({d:today(),f:n.f,a:n.a,q:n.quelle}))].slice(-50); save() }
+  neu();
+}
+
+/* ---------- Trainer ---------- */
+let tmode=lsGet("schach-tmode","chat"), sampleFn=undefined, ctl=null, busy=false, speak=lsGet("schach-speak",false), anaState=null;
+async function getSample(){ return SERVER.token()? SERVER.sample : null }
+function trainerContext(){
+  const n=curWeek(), w=W(n), open=w.aufgaben.filter((_,i)=>!S.plan[tkey(n,i)]);
+  const acc=accuracy(), sw=(D.schwaechen||[]).map(s=>"- "+s.titel+" ("+s.anzahl+"x): "+s.text).join("\n");
+  const notes=(S.notes||[]).slice(-15).map(x=>"- "+x.d+": "+x.text).join("\n");
+  return `Du bist der persönliche Schachtrainer von ${D.spieler.name} in seiner Trainings-App.
+Regeln: Antworte auf Deutsch, kurz und klar (er liest am Handy). Deutsche Notation: K, D, T, L, S, Bauernzüge ohne Buchstaben. Ehrliche Kritik. Du hast keine Engine: rechne vorsichtig, und wenn du bei einem Zug unsicher bist, sag das, statt Züge zu erfinden. Taktik vor Theorie. Kein Markdown außer **fett** und Listen mit "- ".
+Spieler: chess.com ${D.spieler.chesscom}, ${D.spieler.rating}, Ziel ${D.spieler.ziel}. Farbe ist auf chess.com zufällig, also Weiß und Schwarz gleich wichtig.
+Repertoire:
+${(D.repertoire||[]).map(r=>"- "+r).join("\n")}
+Aktuelle Woche ${n} von 8: ${w.titel}. Ziel: ${w.ziel}. Täglich Taktik: ${w.taktik}, Endspiel: ${w.endspiel}.
+Offene Aufgaben dieser Woche: ${open.length?open.join(" | "):"keine"}.
+Fortschritt: Serie ${streak()} Tage, ${daysThisWeek()} Trainingstage in den letzten 7 Tagen, Wiederholungen ${acc.p==null?"noch keine":acc.p+"% richtig"}.
+Fehler-Aufgaben: ${offeneItems().length} offen, ${fertigeItems().length} abgeschlossen.
+Bekannte Schwächen:
+${sw}
+${notes?"Eigene Notizen von ihm:\n"+notes:""}
+Letzte Partien: ${allGames().slice(0,6).map(g=>g.datum+" vs "+g.gegner+" ("+(g.farbe==="w"?"Weiß":"Schwarz")+", "+resultOf(g)+"): "+(g.kurz||"")).join(" | ")||"keine"}
+Wenn er ein Quiz will: Stelle Fragen einzeln zur aktuellen Woche, warte auf seine Antwort, erkläre Fehler. Wenn er eine Partie schickt: 1. Eröffnung (bis wann im Repertoire, was richtig wäre), 2. Mittelspiel-Plan zur Bauernstruktur, 3. die 1–3 entscheidenden Fehler mit besserem Zug und Grund, 4. Endspiel-Prinzip falls erreicht, 5. 1–2 Übungen zur aktuellen Woche. Für längere Partien gibt es in der App auch den Bereich "Partie analysieren".
+Heute ist ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}.`;
+}
+function md(t){
+  const lines=esc(t).split("\n"); let h="", inList=false;
+  for(let l of lines){ l=l.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+    if(/^\s*[-•*]\s+/.test(l)){ if(!inList){h+="<ul>";inList=true} h+="<li>"+l.replace(/^\s*[-•*]\s+/,"")+"</li>"; continue }
+    if(inList){h+="</ul>";inList=false}
+    if(l.trim()) h+="<p>"+l.replace(/^#+\s*/,"")+"</p>";
+  }
+  return h+(inList?"</ul>":"");
+}
+function sayIt(t){const s=String(t).replace(/\*\*/g,"").replace(/^\s*[-•]\s*/gm,"");try{if(window.SchachNative&&SchachNative.sprich){SchachNative.sprich(s);return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(s);u.lang="de-DE";speechSynthesis.speak(u)}catch(e){toast("Vorlesen geht auf diesem Gerät nicht.")}}
+function vTrainer(v){
+  v.innerHTML=`<section><div class="seg" role="group" aria-label="Modus"><button type="button" data-m="chat">Chat mit Trainer</button><button type="button" data-m="ana">Partie analysieren</button></div></section><div id="tv"></div>`;
+  v.querySelectorAll("[data-m]").forEach(b=>{b.setAttribute("aria-pressed",b.dataset.m===tmode);b.onclick=()=>{tmode=b.dataset.m;lsSet("schach-tmode",tmode);render()}});
+  tmode==="ana"?vAna($("#tv")):vChat($("#tv"));
+}
+function vChat(v){
+  const n=curWeek();
+  const chipsQ=["Quiz zu Woche "+n,"Was soll ich heute üben?","Erklär mir den Plan nach "+(n<=2?"6.e5 im Schottischen":n<=4?"…Lxc3 im Nimzo":"3…Lc5 im Italiener"),"Gib mir eine Taktik-Aufgabe"];
+  v.innerHTML=`<section class="chat" id="chat">
+   ${C.turns.length?"":`<div class="card"><b>Hallo Justin, ich bin dein Trainer.</b><p class="small muted">Frag mich alles zu deinem Training, lass dich abfragen oder schick mir eine Stellung. Zum Sprechen tippe auf das Mikrofon deiner Handy-Tastatur. Die Antworten kommen von einem kostenlosen KI-Modell. Für Wochenpläne, neue Übungen und tiefe Analysen sprich mit Claude, das landet dann automatisch hier.</p><div class="row"><a class="btn s" href="https://claude.ai/new" target="_blank" rel="noopener">Claude öffnen</a></div></div>`}
+   ${C.turns.map((t,i)=>t.role==="user"?`<div class="msg u">${esc(t.content)}</div>`:`<div class="msg a">${md(t.content)}<div class="tools"><button class="btn s" type="button" data-say="${i}">Vorlesen</button>${t.modell?'<span class="small muted" style="align-self:center">'+esc(t.modell.replace(/^[^:]*:\s*/,""))+'</span>':""}</div></div>`).join("")}
+   <div id="live"></div></section>
+   <div class="chips">${chipsQ.map(q=>`<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+   <div class="compose"><textarea id="msg-in" rows="1" placeholder="Schreib deinem Trainer …" aria-label="Nachricht"></textarea><button class="btn p" type="button" id="send">${busy?"Stopp":"Senden"}</button></div>
+   <div class="row small muted"><label class="row" style="gap:6px"><input type="checkbox" id="speak" ${speak?"checked":""}> Antworten automatisch vorlesen</label>${C.turns.length?'<button class="btn s" type="button" id="clear">Neues Gespräch</button>':""}</div>`;
+  const ta=$("#msg-in"); ta.value=lsGet("schach-draft","");
+  ta.oninput=()=>{lsSet("schach-draft",ta.value);ta.style.height="auto";ta.style.height=Math.min(160,ta.scrollHeight)+"px"};
+  ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey&&window.matchMedia("(min-width:700px)").matches){e.preventDefault();$("#send").click()}};
+  $("#send").onclick=()=>{ if(busy){ctl&&ctl.abort();return} const t=ta.value.trim(); if(t){ta.value="";lsSet("schach-draft","");send(t)} };
+  v.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>send(b.dataset.q));
+  v.querySelectorAll("[data-say]").forEach(b=>b.onclick=()=>sayIt(C.turns[+b.dataset.say].content));
+  $("#speak").onchange=e=>{speak=e.target.checked;lsSet("schach-speak",speak)};
+  const cl=$("#clear"); if(cl) cl.onclick=()=>{C.turns=[];saveChat();render()};
+  if(busy) $("#live").innerHTML='<div class="msg a"><p class="muted">Denkt nach …</p></div>';
+  const last=v.querySelector("#chat .msg:last-of-type"); if(last&&C.turns.length) last.scrollIntoView({block:"nearest"});
+}
+async function send(text){
+  if(busy) return;
+  if(view!=="trainer"||tmode!=="chat"){tmode="chat";lsSet("schach-tmode","chat");go("trainer")}
+  const sample=await getSample();
+  C.turns.push({role:"user",content:text}); saveChat(); busy=true; render();
+  if(!sample){busy=false;C.turns.push({role:"assistant",content:"Der Trainer ist noch nicht eingerichtet. Tippe oben rechts auf den Knopf und gib deinen Zugangscode ein."});saveChat();render();return}
+  ctl=new AbortController();
+  const turns=C.turns.slice(-24); while(turns.length&&turns[0].role!=="user") turns.shift();
+  const live=()=>$("#live");
+  try{
+    const r=await sample([{role:"user",content:trainerContext()},...turns],{cache:false,signal:ctl.signal,
+      onText:({text})=>{const l=live(); if(l) {l.innerHTML='<div class="msg a">'+md(text)+'</div>'; l.scrollIntoView({block:"end"})}}});
+    C.turns.push({role:"assistant",content:r.text+(r.truncated?"\n\n(Antwort wurde gekürzt.)":""),modell:r.modell||""});
+    if(speak) sayIt(r.text);
+  }catch(e){
+    const code=e&&e.code;
+    if(e&&e.text) C.turns.push({role:"assistant",content:e.text+"\n\n(unterbrochen)"});
+    else if(code!=="cancelled") C.turns.push({role:"assistant",content:code==="not_granted"?"Der Zugangscode stimmt nicht. Tippe oben rechts auf den Knopf und gib ihn neu ein.":code==="rate_limited"?"Gerade zu viele Anfragen oder dein Nutzungslimit ist erreicht. Versuch es später nochmal.":code==="anbieter"?"Gerade antwortet kein KI-Modell. Versuch es in ein paar Minuten nochmal.":code==="offline"?"Keine Verbindung. Prüf dein Internet und schick die Nachricht nochmal.":"Das hat nicht geklappt. Schick die Nachricht gleich nochmal."});
+  }
+  C.turns=C.turns.slice(-40); busy=false; saveChat(); render();
+}
+
+/* ---------- Partie analysieren ---------- */
+function vAna(v){
+  const A=anaState, laeuft=A&&A.busy;
+  v.innerHTML=`<section class="card"><b>Partie importieren</b><p class="small muted">Auf chess.com: Partie öffnen, Teilen, PGN kopieren und hier einfügen. Die Partie landet sofort unter Übungen › Meine Partien. Stockfish und der Trainer analysieren sie, und die Analyse findest du dort jederzeit wieder.</p>
+   <textarea id="pgn" rows="6" placeholder="[Event &quot;Live Chess&quot;] … 1. e4 e5 2. Nf3 …" aria-label="PGN"></textarea>
+   <div class="row"><button class="btn p" type="button" id="ana-go" ${laeuft?"disabled":""}>${laeuft?"Analysiert …":"Importieren und analysieren"}</button>${laeuft?'<button class="btn" type="button" id="ana-stop">Stopp</button>':'<button class="btn" type="button" id="ana-leer">Feld leeren</button>'}</div>
+   <p class="small muted" id="ana-msg" ${A&&A.msg?"":"hidden"}>${A&&A.msg?esc(A.msg):""}</p>
+   ${A&&A.frage?`<div class="row">${A.frage.map((f,i)=>`<button class="btn" type="button" data-fr="${i}">${esc(f.t)}</button>`).join("")}</div>`:""}
+   ${A&&A.gameId?'<div class="row"><button class="btn" type="button" id="ana-zur">Partie ansehen</button></div>':""}</section>
+   ${A&&A.gameId?'<div id="vl-slot"></div>':""}
+   <div id="ana-out">${A&&A.res?anaHTML(A):""}</div>`;
+  const ta=$("#pgn"); ta.value=lsGet("schach-pgn","");
+  ta.oninput=()=>lsSet("schach-pgn",ta.value);
+  /* alles markieren: Einfügen ersetzt dann den alten Text, statt ihn zu verlängern */
+  ta.onfocus=()=>{try{ta.select()}catch(e){}};
+  $("#ana-go").onclick=()=>analyze(ta.value);
+  const st=$("#ana-stop"); if(st) st.onclick=()=>A.ctl&&A.ctl.abort();
+  const le=$("#ana-leer"); if(le) le.onclick=()=>{ta.value="";lsSet("schach-pgn","");anaState=null;render()};
+  const zu=$("#ana-zur"); if(zu) zu.onclick=()=>{bibTab="partien";lsSet("schach-bibtab","partien");gv={id:A.gameId,ply:-1};go("bibliothek")};
+  v.querySelectorAll("[data-fr]").forEach(b=>b.onclick=()=>A.frage[+b.dataset.fr].f());
+  if(A&&A.res) bindAna(A,v);
+  if(A&&A.gameId) zeigeVerlauf();
+}
+
+/* Liest PGNs großzügig: Köpfe, Kommentare, Varianten und Zeilenumbrüche dürfen fehlen oder anders aussehen als im Standard. */
+function parsePgn(txt){
+  if(typeof Chess==="undefined") throw new Error("Brett nicht geladen");
+  let t=String(txt||"").replace(/[  -​ 　﻿]/g," ").replace(/\r\n?/g,"\n").replace(/[„“”«»]/g,'"');
+  const teile=t.split(/(?=\[\s*Event\s+")/).filter(x=>/\S/.test(x));
+  const mehrere=teile.length>1&&/\[\s*Event\s+"/.test(teile[teile.length-2]);
+  if(teile.length>1) t=teile[teile.length-1];
+  const kopf={};
+  t=t.replace(/\[\s*([A-Za-z][A-Za-z0-9_]*)\s+"([^"]*)"\s*\]/g,(m,k,w)=>{kopf[k]=w;return " "});
+  t=t.replace(/\{[^}]*(\}|$)/g," ").replace(/;[^\n]*/g," ").replace(/https?:\/\/\S+/g," ").replace(/\$\d+/g," ");
+  for(let alt="";alt!==t;){alt=t;t=t.replace(/\([^()]*\)/g," ")}
+  t=t.replace(/\([^()]*$/g," ").replace(/\b\d+\s*[.…]+/g," ").replace(/\.\.\.+|…/g," ");
+  const start="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", c=kopf.FEN?new Chess(kopf.FEN):new Chess();
+  const DE={D:"Q",T:"R",L:"B",S:"N"};
+  const ziehe=w=>{
+    const z=w.replace(/^0-0-0/,"O-O-O").replace(/^0-0/,"O-O").replace(/e\.p\.$/,"").replace(/[!?,;:]+$/,"");
+    return c.move(z,{sloppy:true})||c.move(z.replace(/^[DTLS]/,m=>DE[m]).replace(/=([DTLS])/,(m,x)=>"="+DE[x]),{sloppy:true});
+  };
+  let gelesen=0, stopp="", ende=false;
+  for(const w of t.split(/\s+/).filter(Boolean)){
+    if(/^(1-0|0-1|1\/2-1\/2|½-½|\*)$/.test(w)){kopf.Result=kopf.Result||w.replace("½-½","1/2-1/2");ende=true;break}
+    if(/^e\.p\.$/.test(w)) continue;
+    let m=null; try{m=ziehe(w)}catch(e){}
+    if(m){gelesen++;continue}
+    if(gelesen){stopp=w;break}
+  }
+  Object.keys(kopf).forEach(k=>c.header(k,kopf[k]));
+  c.koepfe=Object.keys(kopf).length;
+  c.freieStellung=!!kopf.FEN&&kopf.FEN!==start;
+  const zugartig=/^[KQRBNDTLS]?[a-h]?[1-8]?x?[a-h][1-8]|^[O0]-[O0]/.test(stopp), abgerissen=!ende&&!!kopf.Result&&kopf.Result!=="*";
+  c.unvollstaendig=gelesen>0&&(zugartig||abgerissen);
+  const zugNr=Math.ceil(gelesen/2);
+  c.hinweis=c.unvollstaendig?"Ich konnte nur "+zugNr+" Züge lesen"+(stopp?", danach kommt „"+stopp+"“":"")+". Wahrscheinlich fehlt der Rest des PGN.":mehrere?"Im Feld standen mehrere Partien, ich habe die letzte genommen.":"";
+  return c;
+}
+function pgnFehler(txt,g){
+  if(/^\s*https?:\/\/\S+\s*$/.test(txt)) return "Das ist nur der Link zur Partie, die Züge stehen nicht drin. Auf chess.com: Teilen, dann PGN kopieren.";
+  if(g&&g.koepfe) return "Ich sehe die Kopfzeilen der Partie, aber keine Züge. Kopiere das PGN nochmal, die Züge stehen ganz unten.";
+  return "In den "+txt.length+" eingefügten Zeichen stehen keine Schachzüge. Auf chess.com: Partie öffnen, Teilen, PGN kopieren.";
+}
+
+/* ---------- Importierte Partien und ihre Analysen ---------- */
+/* Zugfolge ohne Beiwerk: damit erkennt die App eine Partie wieder */
+const zugKey=p=>String(p||"").replace(/\[[^\]]*\]/g," ").replace(/\{[^}]*\}/g," ").replace(/\d+\s*\.+/g," ").replace(/(^|\s)(1-0|0-1|1\/2-1\/2|\*)(?=\s|$)/g," ").replace(/\s+/g," ").trim();
+function merkePartie(P){
+  const h=P.headers||{}, datum=String(h.Date||h.UTCDate||"").replace(/\./g,"-");
+  const pgn=P.hist.map((m,i)=>(i%2===0?(i/2+1)+". ":"")+m).join(" ")+" "+(h.Result||"*");
+  const alt=allGames().find(x=>zugKey(x.pgn)===zugKey(pgn));
+  if(alt) return {id:alt.id,neu:false};
+  let eroeffnung=""; try{eroeffnung=decodeURIComponent(String(h.ECOUrl||"").split("/").pop()).replace(/-/g," ").slice(0,48)}catch(e){}
+  const g={id:"a-"+Date.now().toString(36),datum:/^\d{4}-\d\d-\d\d$/.test(datum)?datum:today(),gegner:P.title,farbe:P.color,ergebnis:h.Result||"*",
+    eloIch:P.color==="w"?+h.WhiteElo||null:+h.BlackElo||null,eloGegner:P.color==="w"?+h.BlackElo||null:+h.WhiteElo||null,eroeffnung,kurz:"",pgn};
+  S.games=[...(S.games||[]),g].slice(-150); save();
+  return {id:g.id,neu:true};
+}
+/* jede Analyse ist ein eigenes Dokument, so bleibt der Fortschritt klein (Grenze je Dokument: 256 KiB) */
+const ANA={};
+const anaPfad=id=>"data/users/"+anaUid+"/analyse-"+String(id).replace(/[^A-Za-z0-9_.~-]/g,"_");
+function merkeAnalyse(id,res){
+  ANA[id]=res; lsSet("schach-ana-"+id,res);
+  if(!(S.anaIds||[]).includes(id)){S.anaIds=[...(S.anaIds||[]),id].slice(-300);save()}
+  if(anaDb) Promise.resolve().then(()=>anaDb.doc(anaPfad(id)).set(JSON.parse(JSON.stringify(res)))).catch(e=>{console.warn("analyse",e);toast("Die Analyse liegt nur auf diesem Gerät.")});
+}
+async function holeAnalyse(id){
+  if(ANA[id]) return ANA[id];
+  const lokal=lsGet("schach-ana-"+id,null);
+  if(lokal) return ANA[id]=lokal;
+  if(anaDb&&(S.anaIds||[]).includes(id)){
+    try{const d=await anaDb.doc(anaPfad(id)).get(); if(d.exists) return ANA[id]=JSON.parse(JSON.stringify(d.data()))}catch(e){console.warn("analyse",e)}
+  }
+  return null;
+}
+function vergissAnalyse(id){
+  delete ANA[id]; try{localStorage.removeItem("schach-ana-"+id)}catch(e){}
+  vlVergiss(id);
+  S.anaIds=(S.anaIds||[]).filter(x=>x!==id);
+  if(anaDb) Promise.resolve().then(()=>anaDb.doc(anaPfad(id)).delete()).catch(()=>{});
+}
+const anaAus=(g,hist,res)=>({res,gameId:g.id,color:g.farbe,title:g.gegner,checked:checkMistakes(res,hist).map(c=>Object.assign(c,{saved:(S.custom||[]).some(x=>x.fen===c.fen&&x.antwort&&x.antwort[0]===c.san)}))});
+function anaNeu(){
+  if(view==="trainer"&&tmode==="ana") return render();
+  if(view!=="bibliothek"||bibTab!=="partien") return;
+  if(!gv) return render();
+  if(anaState&&gv.id===anaState.gameId){const g=allGames().find(x=>x.id===gv.id);if(g)zeigeAnalyse(g,gameHist(g))}
+}
+function zeigeAnalyse(g,hist,geprueft){
+  const o=$("#ana-slot"); if(!o) return;
+  const A=anaState;
+  if(A&&A.busy&&A.gameId===g.id){
+    o.innerHTML=`<div class="card"><b>Analyse läuft</b><p class="small muted" id="ana-msg">${esc(A.msg||"")}</p><div class="row"><button class="btn s" type="button" id="ana-stop">Stopp</button></div></div>`;
+    $("#ana-stop").onclick=()=>A.ctl.abort(); return;
+  }
+  const res=ANA[g.id]||lsGet("schach-ana-"+g.id,null);
+  const starte=()=>analysierePartie({gameId:g.id,hist,color:g.farbe,title:g.gegner,ergebnis:g.ergebnis});
+  if(res){
+    ANA[g.id]=res;
+    const B=anaAus(g,hist,res);
+    o.innerHTML=anaHTML(B,true)+'<div class="row"><button class="btn s" type="button" id="ana-neu">Neu analysieren</button></div>';
+    bindAna(B,o);
+    o.querySelectorAll("[data-sprung]").forEach(b=>b.onclick=()=>{gv.ply=+b.dataset.sprung;render();window.scrollTo(0,0)});
+    $("#ana-neu").onclick=starte; return;
+  }
+  if(!geprueft&&anaDb&&(S.anaIds||[]).includes(g.id)){
+    o.innerHTML='<div class="card"><p class="small muted">Analyse wird geladen …</p></div>';
+    holeAnalyse(g.id).then(()=>{if(gv&&gv.id===g.id)zeigeAnalyse(g,hist,true)}); return;
+  }
+  const hin=A&&A.gameId===g.id&&A.msg?A.msg:"Stockfish und der Trainer gehen die Partie durch. Das dauert 1–2 Minuten.";
+  o.innerHTML=`<div class="card"><b>Noch keine Analyse</b><p class="small muted">${esc(hin)}</p><div class="row"><button class="btn p" type="button" id="ana-jetzt">Jetzt analysieren</button></div></div>`;
+  $("#ana-jetzt").onclick=starte;
+}
+async function analyze(txt,wahl){
+  wahl=wahl||{}; txt=(txt||"").trim();
+  if(!txt){toast("Erst ein PGN einfügen.");return}
+  if(anaState&&anaState.busy) return;
+  let g=null; try{g=parsePgn(txt)}catch(e){console.warn(e)}
+  if(!g||!g.history().length){anaState={msg:pgnFehler(txt,g)};render();return}
+  if(g.freieStellung){anaState={msg:"Diese Partie beginnt nicht aus der Grundstellung. Das kann ich noch nicht übernehmen."};render();return}
+  const nochmal=x=>()=>analyze(txt,Object.assign({},wahl,x));
+  if(g.unvollstaendig&&!wahl.teil){anaState={msg:g.hinweis,frage:[{t:"Trotzdem importieren",f:nochmal({teil:true})}]};render();return}
+  const h=g.header(), me=(D.spieler.chesscom||"").toLowerCase();
+  const color=wahl.farbe||((h.White||"").toLowerCase()===me?"w":(h.Black||"").toLowerCase()===me?"b":null);
+  if(!color){anaState={msg:"Dein Name "+D.spieler.chesscom+" steht nicht im PGN. Welche Farbe hattest du?",frage:[{t:"Ich war Weiß",f:nochmal({farbe:"w"})},{t:"Ich war Schwarz",f:nochmal({farbe:"b"})}]};render();return}
+  const hist=g.history(), gegner=color==="w"?h.Black:h.White, title=gegner&&gegner!=="?"?gegner:"Unbekannt";
+  const m=merkePartie({hist,color,headers:h,title});
+  lsSet("schach-pgn","");
+  if(!m.neu){
+    const alt=await holeAnalyse(m.id), gg=allGames().find(x=>x.id===m.id);
+    if(alt&&gg){anaState=Object.assign(anaAus(gg,hist,alt),{msg:"Diese Partie war schon gespeichert, hier ist ihre Analyse."});render();return}
+  }
+  toast(m.neu?"Partie unter Meine Partien gespeichert":"Diese Partie war schon gespeichert");
+  await analysierePartie({gameId:m.id,hist,color,title,ergebnis:h.Result||"*",hinweis:g.hinweis});
+}
+async function analysierePartie(P){
+  const sample=await getSample();
+  if(!sample){anaState={gameId:P.gameId,msg:"Die Partie ist gespeichert. Für die Analyse gib erst oben rechts deinen Zugangscode ein."};anaNeu();return}
+  const hist=P.hist, color=P.color;
+  const A=anaState={busy:true,msg:"Stockfish prüft die Partie …",ctl:new AbortController(),hist,color,title:P.title,gameId:P.gameId};
+  const vlN=vlMitlauf(P.gameId,hist);
+  anaNeu();
+  const stand=t=>{A.msg=t;const o=$("#ana-msg");if(o){o.hidden=false;o.textContent=(P.hinweis?P.hinweis+" ":"")+t}};
+  const sfText=await FAKT.partie(hist,color,(n,v)=>stand("Stockfish prüft Zug "+n+" von "+v+" …"),A.ctl.signal,vlN&&vlN.punkt);
+  if(vlN) vlN.ende(A.ctl.signal.aborted);
+  if(A.ctl.signal.aborted){A.busy=false;A.msg="Abgebrochen. Die Partie bleibt gespeichert und du kannst sie dort jederzeit analysieren.";anaNeu();return}
+  stand("Der Trainer denkt nach, das kann 1–2 Minuten dauern.");
+  const prompt=trainerContext()+`
+
+Aufgabe: Analysiere diese Partie von Justin (er spielte ${color==="w"?"Weiß":"Schwarz"}). Gegner: ${P.title}. Ergebnis: ${P.ergebnis||"?"}.
+Züge (englische Notation, so wie gespielt): ${hist.map((m,i)=>(i%2===0?(i/2+1)+".":"")+m).join(" ")}
+${sfText?"\n"+sfText+"\nNimm für \"fehler\" die entscheidenden Züge aus dieser Stockfish-Liste, \"besser\" ist der Stockfish-Zug. Erkläre in Worten, warum er besser ist. Die Werte stammen aus einer schnellen Suche, kleine Unterschiede unter etwa einem Bauern sind Rauschen. Ein Zug aus Justins Repertoire ist kein Fehler, wenn er nur wenig verliert.\n":""}
+Antworte NUR mit einem JSON-Objekt in dieser Form:
+{"eroeffnung":"2-3 Sätze: bis wann im Repertoire, wo abgewichen, was richtig wäre","mittelspiel":"2-3 Sätze: Plan zur Bauernstruktur","fehler":[{"zug":12,"farbe":"w","gespielt":"Nc3","besser":"f3","warum":"1-2 Sätze","schwaeche":"id oder leer"}],"endspiel":"1-2 Sätze oder leer","uebungen":"1-2 Übungen passend zur aktuellen Woche","fazit":"1 Satz"}
+Regeln: "fehler" enthält 1 bis 3 entscheidende Fehler von Justin. "zug" ist die Zugnummer, "farbe" w oder b, "gespielt" und "besser" in englischer SAN-Notation (N, B, R, Q, K), genau so wie im Zugtext. "besser" muss in der Stellung legal sein. Wenn du dir bei einem besseren Zug nicht sicher bist, nimm den Fehler nicht auf. "schwaeche" ist eine dieser ids, wenn passend: ${(D.schwaechen||[]).map(s=>s.id+" ("+s.titel+")").join(", ")}. Texte auf Deutsch mit deutscher Notation.`;
+  try{
+    const res=await sample.json(prompt,{modelTier:"complex",signal:A.ctl.signal,cache:{gcTime:6*3600*1000}});
+    if(!res||typeof res!=="object"||Array.isArray(res)) throw {code:"invalid_json"};
+    res.stockfish=!!sfText;
+    A.busy=false; A.msg=""; A.res=res; A.checked=checkMistakes(res,hist);
+    merkeAnalyse(P.gameId,res);
+    const x=(S.games||[]).find(g=>g.id===P.gameId); if(x&&res.fazit){x.kurz=res.fazit;save()}
+    toast("Analyse gespeichert");
+  }catch(e){
+    A.busy=false; A.msg=e&&e.code==="cancelled"?"Abgebrochen. Die Partie bleibt gespeichert und du kannst sie dort jederzeit analysieren.":e&&e.code==="invalid_json"?"Die Antwort war unvollständig. Die Partie ist gespeichert, tipp dort nochmal auf Jetzt analysieren.":e&&e.code==="rate_limited"?"Nutzungslimit erreicht. Die Partie ist gespeichert, analysieren kannst du sie später.":"Das hat nicht geklappt. Die Partie ist gespeichert, tipp dort nochmal auf Jetzt analysieren.";
+  }
+  anaNeu();
+}
+function checkMistakes(res,hist,txt){
+  const out=[]; const list=Array.isArray(res&&res.fehler)?res.fehler.slice(0,3):[];
+  for(const f of list){
+    const color=f.farbe==="b"?"b":"w"; let idx=(Math.max(1,parseInt(f.zug)||1)-1)*2+(color==="b"?1:0);
+    const played=strip(f.gespielt||"");
+    if(strip(hist[idx]||"")!==played){ let best=-1; hist.forEach((m,i)=>{ if(strip(m)===played&&(i%2===(color==="b"?1:0))&&(best<0||Math.abs(i-idx)<Math.abs(best-idx))) best=i }); idx=best }
+    let valid=false, fen=null, san=null;
+    if(idx>=0){ const g=new Chess(); for(let i=0;i<idx;i++) g.move(hist[i]); fen=g.fen(); const m=g.move(f.besser||"",{sloppy:true}); if(m){valid=true;san=m.san} }
+    out.push({f,idx,valid,fen,san});
+  }
+  return out;
+}
+function anaHTML(A,inPartie){
+  const r=A.res||{}, sec=(t,x)=>x?`<div class="card ana"><h3>${t}</h3><p>${esc(x)}</p></div>`:"";
+  return `<section>${sec("Eröffnung",r.eroeffnung)}${sec("Mittelspiel",r.mittelspiel)}
+   <div class="card ana"><h3>Entscheidende Fehler</h3>${(A.checked||[]).map((c,i)=>{const z=c.idx>=0?Math.floor(c.idx/2)+1+(c.idx%2?"…":"."):c.f.zug+".";
+     const kopf=`${esc(z)}${esc(de(c.f.gespielt||"?"))} <span class="muted">besser</span> ${esc(de(c.san||c.f.besser||"?"))}`;
+     return `<div class="mist"><b>${inPartie&&c.idx>=0?`<button class="mv" type="button" data-sprung="${c.idx+1}" aria-label="Zur Stellung springen">${kopf}</button>`:kopf}</b><p class="small">${esc(c.f.warum)}</p>
+     <div class="row small">${c.valid?`<span class="tag">Zug geprüft: legal</span><button class="btn s" type="button" data-save="${i}" ${c.saved?"disabled":""}>${c.saved?"Gespeichert":"Als Übung speichern"}</button>`:'<span class="tag">Zug nicht prüfbar</span>'}</div></div>`}).join("")||'<p class="empty">Keine Fehler gefunden.</p>'}
+     <p class="small muted">${r.stockfish?"Fehler und bessere Züge kommen aus einer schnellen Stockfish-Prüfung.":"Ohne Engine analysiert. Prüf wichtige Stellen kurz auf chess.com nach."}</p></div>
+   ${sec("Endspiel",r.endspiel)}${sec("Übungen für dich",r.uebungen)}${sec("Fazit",r.fazit)}</section>`;
+}
+function bindAna(A,wo){
+  wo.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{
+    const c=A.checked[+b.dataset.save]; if(!c||!c.valid||c.saved) return;
+    const id="c-"+Date.now().toString(36)+b.dataset.save;
+    const item={id,gameId:A.gameId||"",seite:A.color||(c.f.farbe==="b"?"b":"w"),schwaeche:c.f.schwaeche||"",quelle:"vs "+(A.title||"Partie")+" · "+fmt(today()),fen:c.fen,frage:"Aus deiner Partie: Hier hast du "+de(c.f.gespielt)+" gespielt. Finde den besseren Zug.",antwort:[c.san],falsch:{[c.f.gespielt]:"Das hast du in der Partie gespielt."},warum:c.f.warum||""};
+    S.custom=[...(S.custom||[]),item].slice(-80); c.saved=true; save(); render(); toast("Im Fehler-Tagebuch gespeichert");
+  });
+}
+
+/* einmaliger Selbsttest: läuft Stockfish auf diesem Gerät? Das Ergebnis liegt im Fortschritt. */
+async function motorTest(){
+  const t=Date.now(), g=await FAKT.gutachten("r1bqkbnr/pppp1ppp/2n5/8/3pP3/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 4","",800);
+  S.motor={v:1,d:today(),ok:!!g,ms:Date.now()-t,kurz:g?g.kurz:"",stand:FAKT.stand(),ua:navigator.userAgent.slice(0,120)};
+  save();
+}
+
+/* ---------- Neue Übungen prüfen ----------
+   Claude legt Übungen über den Connector an. Die App spielt sie am Brett nach und merkt sich,
+   welche nicht passen. Claude sieht das im Überblick und kann sie korrigieren. */
+function pruefeUebungen(){
+  if(!stateGeladen||typeof Chess==="undefined"||!D) return;
+  const fehler=[];
+  for(const it of (D.uebungen||[])){
+    try{
+      const c=new Chess();
+      if(it.fen){ if(!c.load(it.fen)){fehler.push(it.id+": FEN ungültig");continue} }
+      else { let bad=""; for(const m of (it.line||[])){ if(!c.move(m,{sloppy:true})){bad=m;break} } if(bad){fehler.push(it.id+": Zug "+bad+" in der Linie ist nicht legal");continue} }
+      const fen=c.fen(), ant=it.antwort||[], falsch=ant.filter(a=>!new Chess(fen).move(a,{sloppy:true}));
+      if(!ant.length) fehler.push(it.id+": keine Antwort");
+      else if(falsch.length) fehler.push(it.id+": Antwort "+falsch.join(", ")+" ist in der Stellung nicht legal");
+    }catch(e){ fehler.push(it.id+": "+((e&&e.message)||"Fehler")) }
+  }
+  const alt=S.pruefung||{};
+  if(alt.version!==D.version||JSON.stringify(alt.fehler||[])!==JSON.stringify(fehler)){ S.pruefung={version:D.version,d:today(),fehler}; save() }
+}
+
+/* ---------- Start ---------- */
+if(!D){ $("#view").innerHTML='<div class="fb bad"><b>Keine Daten.</b><p>Tippe oben rechts auf den Knopf, um die Daten vom Server zu laden.</p></div>' }
+else { fertigUebernehmen(); setSync("", "Stand "+fmt(D.stand)); render() }
+initStore().then(()=>{ if(stateDoc&&(!S.motor||S.motor.v!==1)) setTimeout(motorTest,3000) });
+setTimeout(()=>syncData(false),600);
+if(!SERVER.token()){ setSync("err","Kein Zugang"); setTimeout(zeigeZugang,400) }
+if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+
+</body></html>

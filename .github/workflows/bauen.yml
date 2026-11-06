@@ -1,0 +1,155 @@
+name: Bauen und veröffentlichen
+
+# Läuft bei jeder Änderung auf main: Server (mit App) zu Cloudflare, danach APK bauen
+# und als Release "app" bereitstellen.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bauen
+  cancel-in-progress: false
+
+env:
+  WORKER_NAME: schach-app
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  server:
+    name: Server veröffentlichen
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.adresse.outputs.url }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Secrets prüfen
+        run: |
+          fehlt=0
+          for n in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!n}" ]; then echo "::error::Secret $n fehlt (Settings → Secrets and variables → Actions)"; fehlt=1; fi
+          done
+          if [ -z "$NVIDIA_API_KEY" ] && [ -z "$GEMINI_API_KEY" ]; then echo "::error::Weder NVIDIA_API_KEY noch GEMINI_API_KEY ist gesetzt"; fehlt=1; fi
+          [ -z "$NVIDIA_API_KEY" ] && echo "::warning::NVIDIA_API_KEY fehlt, es wird nur Gemini benutzt"
+          [ -z "$GEMINI_API_KEY" ] && echo "::warning::GEMINI_API_KEY fehlt, es gibt keinen Ersatz für NVIDIA"
+          exit $fehlt
+
+      - name: workers.dev-Adresse sicherstellen
+        id: adresse
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
+          sub=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api" | jq -r '.result.subdomain // empty')
+          if [ -z "$sub" ]; then
+            wunsch="schach-$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')"
+            echo "Noch keine workers.dev-Adresse, lege $wunsch an"
+            antwort=$(curl -sS -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              --data "{\"subdomain\":\"$wunsch\"}" "$api")
+            echo "$antwort" | jq -c '{success, errors}'
+            sub=$(echo "$antwort" | jq -r '.result.subdomain // empty')
+          fi
+          if [ -z "$sub" ]; then
+            echo "::error::Konnte keine workers.dev-Adresse anlegen. Einmal im Cloudflare-Dashboard unter Workers & Pages eine Subdomain wählen."
+            exit 1
+          fi
+          echo "url=https://$WORKER_NAME.$sub.workers.dev" >> "$GITHUB_OUTPUT"
+          echo "Adresse: https://$WORKER_NAME.$sub.workers.dev"
+
+      - name: Server und App hochladen
+        working-directory: server
+        run: npx --yes wrangler@4 deploy
+
+      - name: KI-Keys im Server hinterlegen
+        working-directory: server
+        run: |
+          umask 077
+          f=$(mktemp)
+          jq -n --arg n "$NVIDIA_API_KEY" --arg g "$GEMINI_API_KEY" \
+            '{NVIDIA_API_KEY:$n, GEMINI_API_KEY:$g} | with_entries(select(.value != ""))' > "$f"
+          npx --yes wrangler@4 secret bulk "$f"
+          rm -f "$f"
+
+      - name: Kurztest
+        run: |
+          url="${{ steps.adresse.outputs.url }}"
+          for i in $(seq 1 24); do
+            if out=$(curl -fsS "$url/api/health" 2>/dev/null); then echo "$out"; exit 0; fi
+            sleep 5
+          done
+          echo "::warning::Der Server antwortet noch nicht unter $url. Neue workers.dev-Adressen brauchen manchmal ein paar Minuten."
+
+  apk:
+    name: APK bauen
+    needs: server
+    runs-on: ubuntu-latest
+    env:
+      SCHLUESSEL_GEHEIMNIS: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      # Der Signierschlüssel liegt im Repo, geschützt mit einem Passwort, das nur aus einem
+      # Secret abgeleitet wird. So bleibt die Signatur gleich und Updates lassen sich drüber installieren.
+      - name: Signierschlüssel
+        run: |
+          pw=$(printf '%s' "schach-apk:$SCHLUESSEL_GEHEIMNIS" | sha256sum | cut -c1-48)
+          echo "::add-mask::$pw"
+          echo "KS_PW=$pw" >> "$GITHUB_ENV"
+          if [ -f android/release.p12 ] && keytool -list -storetype PKCS12 -keystore android/release.p12 -storepass "$pw" >/dev/null 2>&1; then
+            echo "Vorhandener Schlüssel passt"
+          else
+            [ -f android/release.p12 ] && echo "::warning::Der alte Schlüssel passt nicht mehr (Secret geändert?). Die App muss einmal neu installiert werden."
+            rm -f android/release.p12
+            keytool -genkeypair -storetype PKCS12 -keystore android/release.p12 -alias schach -keyalg RSA -keysize 3072 \
+              -validity 36500 -storepass "$pw" -keypass "$pw" -dname "CN=Justins Schach-App, O=Justin Irmscher, C=DE"
+            echo "NEUER_SCHLUESSEL=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: APK bauen
+        working-directory: android
+        run: gradle assembleRelease --no-daemon -PappUrl="${{ needs.server.outputs.url }}/" -PversionCode=${{ github.run_number }}
+
+      - name: Neuen Schlüssel sichern
+        if: env.NEUER_SCHLUESSEL == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/release.p12
+          git commit -m "APK-Signierschlüssel angelegt [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Release aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk schach-app.apk
+          url="${{ needs.server.outputs.url }}"
+          notes=$(printf 'Justins Schach-App, Version 1.%s (%s)\n\nAPK unten herunterladen und installieren.\n\nServer: %s' \
+            "${{ github.run_number }}" "$(TZ=Europe/Berlin date '+%d.%m.%Y %H:%M')" "$url")
+          if gh release view app >/dev/null 2>&1; then
+            gh release edit app --title "Justins Schach-App" --notes "$notes"
+          else
+            gh release create app --title "Justins Schach-App" --notes "$notes" --latest
+          fi
+          gh release upload app schach-app.apk --clobber
