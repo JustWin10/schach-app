@@ -28,8 +28,8 @@ TOKEN_HASH = "25a608bbee688a6a276ee465dfd84c23ac32cd239ba93f540e81c1d1b35afc8b"
 ANBIETER = "nvidia,gemini"
 
 # Modelle je Anbieter, in dieser Reihenfolge probiert. Zum Tauschen einfach hier ändern.
-NVIDIA_MODELLE = "deepseek-ai/deepseek-v4.1-flash,google/gemma-4-31b-it,mistralai/mistral-large-2-instruct"
-GEMINI_MODELLE = "gemini-2.5-flash-lite,gemini-2.5-flash"
+NVIDIA_MODELLE = "google/gemma-4-31b-it,z-ai/glm-5.3-flash,moonshotai/kimi-k2.6,deepseek-ai/deepseek-v4.1-flash"
+GEMINI_MODELLE = "gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.6-flash"
 
 # So lange wartet der Server auf einen Anbieter, bevor er den nächsten probiert.
 WARTEZEIT_MS = "30000"
