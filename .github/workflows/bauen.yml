@@ -81,6 +81,25 @@ jobs:
           npx --yes wrangler@4 secret bulk "$f"
           rm -f "$f"
 
+      # Prüft jeden eingetragenen KI-Anbieter direkt mit den Keys. Das Ergebnis steht als
+      # Hinweis am Lauf; ein Fehler hier stoppt nichts, der Server nimmt dann den nächsten Anbieter.
+      - name: KI-Test
+        continue-on-error: true
+        run: |
+          modelle() { grep -E "^$1 *=" server/wrangler.toml | sed -E 's/^[^"]*"([^"]*)".*/\1/' | tr ',' '\n' | tr -d ' ' | grep -v '^$' || true; }
+          teste() {
+            t0=$(date +%s%3N)
+            code=$(curl -sS -o ki.json -w '%{http_code}' --max-time 60 -H "Authorization: Bearer $3" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$4\",\"messages\":[{\"role\":\"user\",\"content\":\"Antworte nur mit dem Wort: bereit\"}],\"max_tokens\":300}" "$2" || echo 000)
+            ms=$(( $(date +%s%3N) - t0 ))
+            text=$(jq -r 'if type=="array" then .[0] else . end | .choices[0].message.content // .error.message // .detail // .title // empty' ki.json 2>/dev/null | tr '\n' ' ' | cut -c1-80)
+            if [ "$code" = 200 ]; then echo "::notice::KI-Test $1 $4: ok in $((ms/1000)).$(( (ms%1000)/100 )) s – $text"
+            else echo "::warning::KI-Test $1 $4: HTTP $code – $text"; fi
+            rm -f ki.json
+          }
+          if [ -n "$NVIDIA_API_KEY" ]; then for m in $(modelle NVIDIA_MODELLE); do teste NVIDIA https://integrate.api.nvidia.com/v1/chat/completions "$NVIDIA_API_KEY" "$m"; done; fi
+          if [ -n "$GEMINI_API_KEY" ]; then for m in $(modelle GEMINI_MODELLE); do teste Gemini https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "$GEMINI_API_KEY" "$m"; done; fi
+
       - name: Kurztest
         run: |
           url="${{ steps.adresse.outputs.url }}"
