@@ -572,7 +572,7 @@ function bindNew(){
 }
 
 /* ---------- Bibliothek ---------- */
-const GROUPS=[["plan","Plan"],["eroeffnung","Eröffnungen"],["taktik","Taktik"],["partien","Aus deinen Partien"],["endspiel","Endspiel"]];
+const GROUPS=[["plan","Plan"],["eroeffnung","Eröffnungen"],["taktik","Taktik"],["mittelspiel","Mittelspiel"],["partien","Aus deinen Partien"],["endspiel","Endspiel"]];
 let bibFilter=lsGet("schach-filter","alle"), bibSort=lsGet("schach-sort","thema");
 function cardHTML(a){
   const n=curWeek(), isNew=!S.seen.includes(a.id), forWeek=(a.wochen||[]).includes(n);
