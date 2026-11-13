@@ -24,6 +24,8 @@ self.addEventListener("fetch", (e) => {
   const u = new URL(r.url);
   const eigen = u.origin === self.location.origin;
   if (eigen && (u.pathname.startsWith("/api/") || u.pathname.startsWith("/mcp/"))) return;
+  // Partien von chess.com immer frisch holen, nie aus dem Speicher
+  if (u.hostname === "api.chess.com") return;
 
   if (r.mode === "navigate" || (eigen && (u.pathname === "/" || u.pathname.endsWith(".html")))) {
     e.respondWith(

@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>Justins Schach-App</title>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>Justins Schach-App</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -57,7 +57,7 @@ section{display:flex;flex-direction:column;gap:12px}
 @media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .stat b{font-family:var(--f-display);font-size:1.5rem;line-height:1.1;font-variant-numeric:tabular-nums}
-.stat span{font-size:.8rem;color:var(--muted)}
+.stat span{font-size:.8rem;color:var(--muted);overflow-wrap:anywhere;hyphens:auto}
 .steps{display:flex;flex-direction:column;gap:8px}
 .step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .step.done{opacity:.72}
@@ -262,6 +262,28 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;he
 /* Zugang zum Server */
 .zg{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
 .zg-box{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:18px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+/* Am Brett, Eröffnungs-Check, Bilanz */
+.sq.miss::before{content:"";position:absolute;inset:0;background:rgba(232,148,15,.62)}
+.chip.ri{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.chip.fa{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.chip:disabled{cursor:default;opacity:1}
+.zl-f{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.pr-hin{color:var(--bad);font-weight:600}
+.bl{display:flex;flex-direction:column}
+.bl-block{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.bl-z{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.bl-z:first-child{border-top:0}
+.bl-p{font-family:var(--f-display);font-size:1.1rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bl-ab{color:var(--warn);font-weight:600}
+.rep.warn{border-color:var(--warn)}.rep.good{border-color:var(--good)}
+.tag.ab{color:var(--warn);border-color:var(--warn)}
+.bt-liste{display:flex;flex-direction:column;gap:8px}
+.bt-z{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
+.bt-z:hover{border-color:var(--accent)}
+.bt-z b{display:block;overflow-wrap:anywhere}
+.bt-z .small{display:block;overflow-wrap:anywhere}
+.bt-ok{font:500 .7rem var(--f-mono);color:var(--good);white-space:nowrap}
+.cc{border-color:var(--accent)}
 /* Nachricht von Claude */
 .nachricht{border-color:var(--accent)}
 .nachricht p+p,.nachricht ul{margin-top:6px}
@@ -365,7 +387,7 @@ const SERVER=(()=>{
     if(a<0||b<=a) throw fehler("invalid_json");
     try{return JSON.parse(s.slice(a,b+1))}catch(e){throw fehler("invalid_json")}
   };
-  return {token,setToken,pruefe,get,put,del,doc,sample};
+  return {token,setToken,pruefe,get,put,del,doc,sample,roh:req};
 })();
 
 function zeigeZugang(){
@@ -387,7 +409,7 @@ function zeigeZugang(){
     msg.hidden=false; msg.textContent="Prüfe …";
     let ok=false; try{ok=await SERVER.pruefe(code)}catch(e){msg.textContent="Keine Verbindung zum Server. Prüf dein Internet.";return}
     if(!ok){msg.textContent="Der Code stimmt nicht. Achte auf Groß- und Kleinschreibung.";return}
-    SERVER.setToken(code); zu(); toast("Verbunden"); await initStore(); syncData(false);
+    SERVER.setToken(code); zu(); toast("Verbunden"); await initStore(); syncData(false); setTimeout(()=>{partienPflegen();ccHole(false)},2500);
   };
   inp.onkeydown=e=>{if(e.key==="Enter")$("#zg-ok").click()};
 }
@@ -457,7 +479,7 @@ async function syncData(manual){
 }
 $("#sync").onclick=()=>SERVER.token()?syncData(true):zeigeZugang();
 $("#sync").oncontextmenu=e=>{e.preventDefault();zeigeZugang()};
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && Date.now()-lastSync>5*60*1000){ syncData(false); if(!review&&!saving.state) initStore() } });
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && Date.now()-lastSync>5*60*1000){ syncData(false); if(!review&&!B&&!saving.state&&!AUTO.laeuft&&!CC.laeuft) initStore().then(()=>ccHole(false)); else ccHole(false) } });
 
 /* ---------- Ableitungen ---------- */
 function curWeek(){
@@ -505,7 +527,7 @@ window.addEventListener("hashchange",()=>{const v=location.hash.slice(1); if(VIE
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{
   /* gemerkte Fragen nicht verlieren: erst das Ende der Runde zeigen */
   if(review&&review.pos<review.list.length&&(review.notes||[]).length){review.abbruch=true;review.pos=review.list.length;render();window.scrollTo(0,0);return}
-  review=null;go(b.dataset.v)});
+  review=null;B=null;go(b.dataset.v)});
 
 let review=null; // laufende Wiederholung
 function render(){
@@ -514,12 +536,13 @@ function render(){
   const bn=$("#b-new"); bn.hidden=!nNew; bn.textContent=nNew;
   const v=$("#view");
   if(review && (view==="heute"||view==="fehler")) return renderReview(v);
+  if(B && view==="bibliothek") return bZeig(v);
   ({heute:vHeute,bibliothek:vBib,plan:vPlan,fehler:vFehler,trainer:vTrainer})[view](v);
 }
 
 /* ---------- Heute ---------- */
 function vHeute(v){
-  const n=curWeek(), w=W(n), t=today(), st=S.steps[t]||{}, due=dueItems(), nt=nextTask(n), acc=accuracy();
+  const n=curWeek(), w=W(n), t=today(), st=S.steps[t]||{}, due=dueItems(), nt=nextTask(n), acc=accuracy(), ew=endspielFuer(w);
   const tot=D.wochen.reduce((a,w)=>a+w.aufgaben.length,0), done=Object.values(S.plan).filter(Boolean).length;
   const rec=(D.artifacts||[]).filter(a=>(a.wochen||[]).includes(n));
   const step=(k,title,body,actions)=>`<div class="step ${st[k]?"done":""}"><input class="ck" type="checkbox" id="st-${k}" data-step="${k}" ${st[k]?"checked":""} aria-label="${esc(title)} erledigt"><div><div class="t">${title}</div><div class="muted small">${body}</div>${actions?`<div class="actions">${actions}</div>`:""}</div></div>`;
@@ -542,10 +565,10 @@ function vHeute(v){
   <section>
     <h2>Dein Training heute <small>ca. 25 Min</small></h2>
     <div class="steps">
-      ${step("taktik","10 Min Taktik: "+esc(w.taktik),"Puzzles auf Lichess zum Thema der Woche. Vor jeder Lösung: Schachs, Schlagzüge, Drohungen.",`<a class="btn s" href="${esc(w.taktikLink)}" target="_blank" rel="noopener">Puzzles öffnen</a>`)}
+      ${step("taktik","10 Min Taktik: "+esc(w.taktik),"Puzzles auf Lichess zum Thema der Woche. Vor jeder Lösung: Schachs, Schlagzüge, Drohungen.",`<a class="btn s" href="${esc(w.taktikLink)}" target="_blank" rel="noopener">Puzzles öffnen</a><button class="btn s" type="button" id="go-pr">Erst prüfen, dann ziehen</button>`)}
       ${step("wdh","Fehler wiederholen",due.length?`${Math.min(5,due.length)} Aufgaben aus deinen eigenen Fehlern sind fällig.`:"Heute ist nichts fällig. Stark!",due.length?`<button class="btn p s" type="button" id="go-rev">Starten</button>`:"")}
       ${step("thema","Thema der Woche",nt?esc(nt.text):"Alle Aufgaben dieser Woche sind erledigt. Wiederhole die Linien im Eröffnungs-Trainer.",(nt?`<button class="btn s" type="button" id="tick-task">Aufgabe abhaken</button>`:"")+(rec[0]?`<a class="btn s" href="${esc(rec[0].url)}" target="_blank" rel="noopener">${esc(rec[0].titel)}</a>`:""))}
-      ${step("end","5 Min Endspiel: "+esc(w.endspiel),"Auf Lichess unter Übungen, oder frag den Trainer nach einer Stellung.",`<a class="btn s" href="https://lichess.org/practice" target="_blank" rel="noopener">Lichess-Übungen</a>`)}
+      ${step("end","5 Min Endspiel: "+esc(w.endspiel),ew?"Spiel es hier gegen Stockfish aus, bis es sitzt. Schaffst du es, ist der Punkt abgehakt.":"Auf Lichess unter Übungen, oder frag den Trainer nach einer Stellung.",(ew?`<button class="btn p s" type="button" id="go-end">Gegen Stockfish üben</button>`:"")+`<a class="btn s" href="https://lichess.org/practice" target="_blank" rel="noopener">Lichess-Übungen</a>`)}
     </div>
     <div class="row"><button class="btn ${dayDone?"":"p"}" type="button" id="day" ${dayDone?"disabled":""}>${dayDone?"Heute schon abgehakt":"Tag abhaken"}</button>
     <button class="btn" type="button" id="ask-today">Trainer fragen, was heute wichtig ist</button></div>
@@ -553,6 +576,8 @@ function vHeute(v){
   ${newBlock()}`;
   v.querySelectorAll("[data-step]").forEach(c=>c.onchange=()=>{setStep(c.dataset.step,c.checked);render()});
   const g=$("#go-rev"); if(g) g.onclick=()=>startReview(due.slice(0,5),"Heute");
+  $("#go-pr").onclick=()=>prStart(true);
+  const ge=$("#go-end"); if(ge) ge.onclick=()=>spStart(ew,true);
   const tt=$("#tick-task"); if(tt) tt.onclick=()=>{S.plan[tkey(n,nt.i)]=true;setStep("thema",true);render();toast("Aufgabe abgehakt")};
   $("#day").onclick=()=>{markDay();render()};
   $("#ask-today").onclick=()=>{go("trainer");setTimeout(()=>send("Was soll ich heute am besten üben? Kurz und konkret."),50)};
@@ -580,7 +605,7 @@ function cardHTML(a){
   return `<a class="card item" data-id="${esc(a.id)}" href="${esc(a.url)}" target="_blank" rel="noopener"><h3>${esc(a.titel)}</h3><p>${esc(a.text)}</p>
    <div class="meta">${isNew?'<span class="tag new">Neu</span>':""}${forWeek?'<span class="tag wk">Woche '+n+'</span>':""}${tags}${a.datum?'<span class="tag">'+fmt(a.datum)+'</span>':""}</div></a>`;
 }
-function vBib(v){ if(bibTab==="partien") return vPartien(v,bibHead()); vUeb(v) }
+function vBib(v){ if(bibTab==="partien") return vPartien(v,bibHead()); if(bibTab==="brett") return vBrett(v); vUeb(v) }
 function vUeb(v){
   const arts=D.artifacts||[], used=GROUPS.filter(g=>arts.some(a=>a.gruppe===g[0]));
   const sorts=[["thema","Nach Thema"],["neu","Neueste zuerst"],["alt","Älteste zuerst"]];
@@ -687,7 +712,7 @@ const FAKT=(function(){
     return ladung;
   }
   /* eine Suche, immer nur eine gleichzeitig. Antwort: {tiefe, zeilen:[{art,zahl,pv}]} aus Sicht der Seite am Zug */
-  function suche(fen,ms,mehr){
+  function suche(fen,ms,mehr,tiefe){
     const lauf=schlange.then(()=>new Promise(fertig=>{
       const z={}; let tiefe=0;
       const ende=()=>{clearTimeout(uhr);motor.onmessage=null;fertig({tiefe,zeilen:Object.keys(z).sort((a,b)=>a-b).map(k=>z[k])})};
@@ -701,7 +726,7 @@ const FAKT=(function(){
       };
       motor.postMessage("setoption name MultiPV value "+mehr);
       motor.postMessage("position fen "+fen);
-      motor.postMessage("go depth 18 movetime "+ms);
+      motor.postMessage("go depth "+(tiefe||18)+" movetime "+ms);
     }));
     schlange=lauf.catch(()=>{});
     return lauf;
@@ -736,6 +761,16 @@ const FAKT=(function(){
       }
       return {text,kurz};
     }catch(e){zustand.fehler="Suche: "+(e&&e.message);return null}
+  }
+  /* beste Züge einer Stellung als [{cp,san,linie}]. cp in Hundertstel-Bauern aus Sicht von Weiß,
+     Matt in n als ±(MATT−n). null, wenn Stockfish nicht läuft, leer bei Matt oder Patt. */
+  const rohZ=(z,am)=>{const k=am==="w"?1:-1;return z.art==="mate"?k*(z.zahl<0?-1:1)*(MATT-Math.abs(z.zahl)):k*z.zahl};
+  async function lage(fen,ms,mehr,tiefe){
+    try{
+      if(!await lade())return null;
+      const am=fen.split(" ")[1], r=await suche(fen,ms||1000,mehr||1,tiefe);
+      return r.zeilen.map(z=>{const l=linie(fen,z.pv,6);return {cp:rohZ(z,am),san:l[0]||"",linie:l}}).filter(x=>x.san);
+    }catch(e){zustand.fehler="Lage: "+(e&&e.message);return null}
   }
   /* kurzer Blick für das Prüf-Werkzeug */
   async function blick(fen){
@@ -821,7 +856,7 @@ const FAKT=(function(){
       return '<div class="fr-brett" role="img" aria-label="Stellung zur Frage">'+h+'</div>';
     }catch(e){return ""}
   }
-  return {stellung,pruefer,verteile,brett,gutachten,partie,stand:()=>Object.assign({},zustand)};
+  return {stellung,pruefer,verteile,brett,gutachten,partie,lage,decker,stand:()=>Object.assign({},zustand)};
 })();
 
 /* ---------- Frage zum Zug ---------- */
@@ -887,26 +922,35 @@ function resultOf(g){
   return g.ergebnis==="*"||!g.ergebnis?"Offen":win?"Sieg":"Niederlage";
 }
 function gameItems(g){return allItems().filter(it=>(g.quelle&&it.quelle===g.quelle)||(it.gameId&&it.gameId===g.id))}
+const HISTC={};
 function gameHist(g){
   if(typeof Chess==="undefined") return null;
-  const l=parsePgn(g.pgn||"").history();
-  return l.length?l:null;
+  const k=g.id+"|"+(g.pgn||"").length; if(k in HISTC) return HISTC[k];
+  let l=[]; try{l=parsePgn(g.pgn||"").history()}catch(e){}
+  return HISTC[k]=l.length?l:null;
 }
 function gameCard(g){
-  const r=resultOf(g), n=gameItems(g).length;
+  const r=resultOf(g), n=gameItems(g).length, rp=repVon(g), ero=g.eroeffnung||(rp&&rp.ero)||"";
   return `<button class="card item gamecard" type="button" data-g="${esc(g.id)}"><div class="row" style="justify-content:space-between;width:100%"><h3>vs ${esc(g.gegner)}</h3><span class="res ${r==="Sieg"?"win":r==="Niederlage"?"loss":""}">${r}</span></div>
-   <p>${esc(g.kurz||"")}</p><div class="meta"><span class="tag ${g.farbe==="w"?"w":"s"}">${g.farbe==="w"?"Weiß":"Schwarz"}</span>${g.eroeffnung?`<span class="tag">${esc(g.eroeffnung)}</span>`:""}${n?`<span class="tag wk">${n} Übungen</span>`:""}${g.own?'<span class="tag">importiert</span>':""}${(S.anaIds||[]).includes(g.id)?'<span class="tag wk">Analyse</span>':""}${anaState&&anaState.busy&&anaState.gameId===g.id?'<span class="tag">wird analysiert</span>':""}<span class="tag">${fmt(g.datum)}</span></div></button>`;
+   <p>${esc(g.kurz||"")}</p><div class="meta"><span class="tag ${g.farbe==="w"?"w":"s"}">${g.farbe==="w"?"Weiß":"Schwarz"}</span>${ero?`<span class="tag">${esc(ero)}</span>`:""}${rp&&rp.art==="ich"?'<span class="tag ab">abgewichen</span>':""}${n?`<span class="tag wk">${n} ${n===1?"Übung":"Übungen"}</span>`:""}${g.own?`<span class="tag">${g.auto?"chess.com":"importiert"}</span>`:""}${(S.anaIds||[]).includes(g.id)?'<span class="tag wk">Analyse</span>':""}${(anaState&&anaState.busy&&anaState.gameId===g.id)||AUTO.id===g.id?'<span class="tag">wird analysiert</span>':""}<span class="tag">${fmt(g.datum)}</span></div></button>`;
 }
 function vPartien(v,head){
   const gs=allGames();
   if(gv){ const g=gs.find(x=>x.id===gv.id); if(g) return vGame(v,g,head); gv=null }
   const w=gs.filter(g=>resultOf(g)==="Sieg").length, l=gs.filter(g=>resultOf(g)==="Niederlage").length;
   v.innerHTML=head+`<section><div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="stat"><b>${gs.length}</b><span>Partien</span></div><div class="stat"><b>${w}</b><span>Siege</span></div><div class="stat"><b>${l}</b><span>Niederlagen</span></div></div>
-   <p class="small muted">Jede Partie, die du im Trainer importierst oder mir in Claude schickst, landet automatisch hier. Tipp auf eine Partie, um sie am Brett nachzuspielen und ihre Analyse zu lesen.</p>
-   <div class="row"><button class="btn" type="button" id="pt-import">Partie importieren</button></div></section>
+   <div class="card cc"><b>Neue Partien von chess.com</b>
+    <p class="small muted" id="cc-msg">${esc(ccStatus())}</p>
+    <div class="row"><button class="btn p s" type="button" id="cc-go" ${CC.laeuft?"disabled":""}>Jetzt holen</button><button class="btn s" type="button" id="pt-import">PGN von Hand einfügen</button></div>
+    <label class="small muted" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="cc-auto" style="flex:none;margin:3px 0 0" ${(S.cc||{}).aus?"":"checked"}><span>Neue Partien automatisch holen und auswerten</span></label></div>
+   <p class="small muted">Tipp auf eine Partie, um sie am Brett nachzuspielen. Dort stehen der Eröffnungs-Check, der Verlauf und die Analyse.</p></section>
+   ${bilanzHTML()}
    ${gs.length?Object.entries(gs.reduce((m,g)=>{(m[g.datum]=m[g.datum]||[]).push(g);return m},{})).map(([d,list])=>`<section><h2>${new Date(d+"T12:00:00").toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"})} <small>${list.length}</small></h2><div class="grid">${list.map(gameCard).join("")}</div></section>`).join(""):'<p class="empty">Noch keine Partien.</p>'}`;
   bindBibHead(v);
   $("#pt-import").onclick=()=>{tmode="ana";lsSet("schach-tmode","ana");go("trainer")};
+  $("#cc-go").onclick=()=>ccHole(true);
+  const bl=$("#bl-auf"); if(bl) bl.addEventListener("toggle",()=>{blAuf=bl.open;lsSet("schach-blauf",blAuf)});
+  $("#cc-auto").onchange=e=>{S.cc=Object.assign({},S.cc,{aus:!e.target.checked});if(S.cc.aus&&AUTO.ctl)AUTO.ctl.abort();save();ccZeig();if(!S.cc.aus)ccHole(false)};
   v.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{gv={id:b.dataset.g,ply:-1};render();window.scrollTo(0,0)});
 }
 function vGame(v,g,head){
@@ -921,12 +965,13 @@ function vGame(v,g,head){
   const mvb=i=>`<button type="button" class="mv ${i+1===gv.ply?"on":""}" data-ply="${i+1}">${esc(de(hist[i]))}</button>`;
   let ml=""; for(let i=0;i<hist.length;i+=2) ml+=`<span class="pair"><span class="mn">${i/2+1}.</span>${mvb(i)}${i+1<hist.length?mvb(i+1):""}</span> `;
   v.innerHTML=head+`<section><div class="row" style="justify-content:space-between"><button class="btn s" type="button" id="gv-back">← Alle Partien</button><span class="res ${r==="Sieg"?"win":r==="Niederlage"?"loss":""}">${r} ${esc(g.ergebnis||"")}</span></div>
-   <h1>vs ${esc(g.gegner)}</h1><p class="small muted">${fmt(g.datum)} · du mit ${g.farbe==="w"?"Weiß":"Schwarz"}${g.eloIch?" ("+g.eloIch+")":""}${g.eloGegner?" gegen "+g.eloGegner:""}${g.eroeffnung?" · "+esc(g.eroeffnung):""}</p></section>
+   <h1>vs ${esc(g.gegner)}</h1><p class="small muted">${fmt(g.datum)} · du mit ${g.farbe==="w"?"Weiß":"Schwarz"}${g.eloIch?" ("+g.eloIch+")":""}${g.eloGegner?" gegen "+g.eloGegner:""}${g.eroeffnung||(repVon(g)||{}).ero?" · "+esc(g.eroeffnung||repVon(g).ero):""}</p></section>
    <div class="trainer-box"><div><div class="board" id="board" role="grid" aria-label="Schachbrett"></div>
     <div class="row" style="justify-content:center;margin-top:10px"><button class="btn s" type="button" data-nav="0" aria-label="Zum Anfang">|◀</button><button class="btn s" type="button" data-nav="-1" aria-label="Zug zurück">◀</button><span class="nota muted" id="gv-stand" style="min-width:64px;text-align:center">${gv.ply}/${hist.length}</span><button class="btn s" type="button" data-nav="1" aria-label="Zug vor">▶</button><button class="btn s" type="button" data-nav="end" aria-label="Zum Ende">▶|</button></div>
     <div id="vl-slot"></div></div>
    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
     ${g.kurz?`<div class="card"><b>Kurz gesagt</b><p>${esc(g.kurz)}</p></div>`:""}
+    ${repKarte(g)}
     <div class="card"><b>Züge</b><div class="movelist">${ml}</div></div>
     ${askBox("g-"+g.id+"-"+gv.ply,askPh,askCtx)}
     <div class="row">${its.length?`<button class="btn p" type="button" id="gv-ex">${its.length} ${its.length===1?"Übung":"Übungen"} aus dieser Partie</button>`:""}${g.quiz?`<a class="btn" href="${esc(g.quiz)}" target="_blank" rel="noopener">Quiz zur Partie</a>`:""}<button class="btn" type="button" id="gv-chat">Mit Trainer besprechen</button>${g.own?'<button class="btn s" type="button" id="gv-del">Löschen</button>':""}</div>
@@ -1111,7 +1156,7 @@ function zeigeVerlauf(){
   vlHole(g.id,hist.length).then(W=>{const z=vlZiel(); if(!z||z.id!==g.id) return; if(W) zeigeVerlauf(); else vlStart(g,hist)});
 }
 function bindBibHead(v){v.querySelectorAll("[data-btab]").forEach(b=>b.onclick=()=>{bibTab=b.dataset.btab;lsSet("schach-bibtab",bibTab);gv=null;render();window.scrollTo(0,0)})}
-function bibHead(){return `<section><div class="seg" role="group" aria-label="Bereich"><button type="button" data-btab="uebungen" aria-pressed="${bibTab==="uebungen"}">Übungen</button><button type="button" data-btab="partien" aria-pressed="${bibTab==="partien"}">Meine Partien</button></div></section>`}
+function bibHead(){return `<section><div class="seg drei" role="group" aria-label="Bereich"><button type="button" data-btab="uebungen" aria-pressed="${bibTab==="uebungen"}">Übungen</button><button type="button" data-btab="brett" aria-pressed="${bibTab==="brett"}">Am Brett</button><button type="button" data-btab="partien" aria-pressed="${bibTab==="partien"}">Meine Partien</button></div></section>`}
 /* ---------- Plan ---------- */
 function vPlan(v){
   const cur=curWeek();
@@ -1444,12 +1489,22 @@ Aktuelle Woche ${n} von 8: ${w.titel}. Ziel: ${w.ziel}. Täglich Taktik: ${w.tak
 Offene Aufgaben dieser Woche: ${open.length?open.join(" | "):"keine"}.
 Fortschritt: Serie ${streak()} Tage, ${daysThisWeek()} Trainingstage in den letzten 7 Tagen, Wiederholungen ${acc.p==null?"noch keine":acc.p+"% richtig"}.
 Fehler-Aufgaben: ${offeneItems().length} offen, ${fertigeItems().length} abgeschlossen.
+${brettText()}
 Bekannte Schwächen:
 ${sw}
 ${notes?"Eigene Notizen von ihm:\n"+notes:""}
 Letzte Partien: ${allGames().slice(0,6).map(g=>g.datum+" vs "+g.gegner+" ("+(g.farbe==="w"?"Weiß":"Schwarz")+", "+resultOf(g)+"): "+(g.kurz||"")).join(" | ")||"keine"}
 Wenn er ein Quiz will: Stelle Fragen einzeln zur aktuellen Woche, warte auf seine Antwort, erkläre Fehler. Wenn er eine Partie schickt: 1. Eröffnung (bis wann im Repertoire, was richtig wäre), 2. Mittelspiel-Plan zur Bauernstruktur, 3. die 1–3 entscheidenden Fehler mit besserem Zug und Grund, 4. Endspiel-Prinzip falls erreicht, 5. 1–2 Übungen zur aktuellen Woche. Für längere Partien gibt es in der App auch den Bereich "Partie analysieren".
 Heute ist ${new Date().toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}.`;
+}
+/* zwei Zeilen für den Trainer: Übungen am Brett und wo das Repertoire verlassen wurde */
+function brettText(){
+  const d=S.drill||{}, pr=d.pruef, zl=d.zaehl, sp=d.spiel, t=[];
+  if(pr&&pr.n) t.push("Erst prüfen: "+pr.n+" Stellungen, Schachs "+proz(pr.sG,pr.sA)+" und Schlagzüge "+proz(pr.cG,pr.cA)+" gefunden");
+  if(zl&&zl.n) t.push("Zählen: "+zl.n+" Stellungen, "+proz(zl.r,zl.n)+" ganz richtig");
+  if(sp&&sp.n) t.push("gegen Stockfish ausgespielt: "+sp.n+" Stellungen, "+sp.g+" geschafft");
+  let ab=""; try{ab=bilanz().ab.slice(0,4).map(a=>a.wo+" statt "+a.buch+" ("+a.n+"x)").join("; ")}catch(e){}
+  return "Übungen am Brett in der App: "+(t.join(". ")||"noch nicht genutzt")+"."+(ab?"\nVom Repertoire abgewichen (Eröffnungs-Check seiner Partien): "+ab+".":"");
 }
 function md(t){
   const lines=esc(t).split("\n"); let h="", inList=false;
@@ -1582,9 +1637,9 @@ function merkePartie(P){
   const pgn=P.hist.map((m,i)=>(i%2===0?(i/2+1)+". ":"")+m).join(" ")+" "+(h.Result||"*");
   const alt=allGames().find(x=>zugKey(x.pgn)===zugKey(pgn));
   if(alt) return {id:alt.id,neu:false};
-  let eroeffnung=""; try{eroeffnung=decodeURIComponent(String(h.ECOUrl||"").split("/").pop()).replace(/-/g," ").slice(0,48)}catch(e){}
-  const g={id:"a-"+Date.now().toString(36),datum:/^\d{4}-\d\d-\d\d$/.test(datum)?datum:today(),gegner:P.title,farbe:P.color,ergebnis:h.Result||"*",
-    eloIch:P.color==="w"?+h.WhiteElo||null:+h.BlackElo||null,eloGegner:P.color==="w"?+h.BlackElo||null:+h.WhiteElo||null,eroeffnung,kurz:"",pgn};
+  const g={id:"a-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),datum:P.datum||(/^\d{4}-\d\d-\d\d$/.test(datum)?datum:today()),gegner:P.title,farbe:P.color,ergebnis:h.Result||"*",
+    eloIch:P.color==="w"?+h.WhiteElo||null:+h.BlackElo||null,eloGegner:P.color==="w"?+h.BlackElo||null:+h.WhiteElo||null,eroeffnung:eroName(P.hist),kurz:"",pgn};
+  if(P.auto){g.auto=true; if(P.zeit)g.zeit=P.zeit; if(P.url)g.url=P.url}
   S.games=[...(S.games||[]),g].slice(-150); save();
   return {id:g.id,neu:true};
 }
@@ -1611,7 +1666,7 @@ function vergissAnalyse(id){
   S.anaIds=(S.anaIds||[]).filter(x=>x!==id);
   if(anaDb) Promise.resolve().then(()=>anaDb.doc(anaPfad(id)).delete()).catch(()=>{});
 }
-const anaAus=(g,hist,res)=>({res,gameId:g.id,color:g.farbe,title:g.gegner,checked:checkMistakes(res,hist).map(c=>Object.assign(c,{saved:(S.custom||[]).some(x=>x.fen===c.fen&&x.antwort&&x.antwort[0]===c.san)}))});
+const anaAus=(g,hist,res)=>({res,gameId:g.id,color:g.farbe,title:g.gegner,checked:checkMistakes(res,hist).map(c=>Object.assign(c,{saved:!!c.fen&&(S.custom||[]).some(x=>x.fen&&bKey(x.fen)===bKey(c.fen))}))});
 function anaNeu(){
   if(view==="trainer"&&tmode==="ana") return render();
   if(view!=="bibliothek"||bibTab!=="partien") return;
@@ -1624,6 +1679,9 @@ function zeigeAnalyse(g,hist,geprueft){
   if(A&&A.busy&&A.gameId===g.id){
     o.innerHTML=`<div class="card"><b>Analyse läuft</b><p class="small muted" id="ana-msg">${esc(A.msg||"")}</p><div class="row"><button class="btn s" type="button" id="ana-stop">Stopp</button></div></div>`;
     $("#ana-stop").onclick=()=>A.ctl.abort(); return;
+  }
+  if(AUTO.id===g.id&&!(S.anaIds||[]).includes(g.id)){
+    o.innerHTML=`<div class="card"><b>Wird im Hintergrund ausgewertet</b><p class="small muted">${esc(AUTO.msg)}</p></div>`; return;
   }
   const res=ANA[g.id]||lsGet("schach-ana-"+g.id,null);
   const starte=()=>analysierePartie({gameId:g.id,hist,color:g.farbe,title:g.gegner,ergebnis:g.ergebnis});
@@ -1665,6 +1723,27 @@ async function analyze(txt,wahl){
   toast(m.neu?"Partie unter Meine Partien gespeichert":"Diese Partie war schon gespeichert");
   await analysierePartie({gameId:m.id,hist,color,title,ergebnis:h.Result||"*",hinweis:g.hinweis});
 }
+/* Trainer-Analyse einer Partie: fragt das KI-Modell und speichert das Ergebnis. Wirft {code} bei Fehlern */
+function anaPrompt(P,sfText){
+  const hist=P.hist, color=P.color;
+  return trainerContext()+`
+
+Aufgabe: Analysiere diese Partie von Justin (er spielte ${color==="w"?"Weiß":"Schwarz"}). Gegner: ${P.title}. Ergebnis: ${P.ergebnis||"?"}.
+Züge (englische Notation, so wie gespielt): ${hist.map((m,i)=>(i%2===0?(i/2+1)+".":"")+m).join(" ")}
+${sfText?"\n"+sfText+"\nNimm für \"fehler\" die entscheidenden Züge aus dieser Stockfish-Liste, \"besser\" ist der Stockfish-Zug. Erkläre in Worten, warum er besser ist. Die Werte stammen aus einer schnellen Suche, kleine Unterschiede unter etwa einem Bauern sind Rauschen. Ein Zug aus Justins Repertoire ist kein Fehler, wenn er nur wenig verliert.\n":""}
+Antworte NUR mit einem JSON-Objekt in dieser Form:
+{"eroeffnung":"2-3 Sätze: bis wann im Repertoire, wo abgewichen, was richtig wäre","mittelspiel":"2-3 Sätze: Plan zur Bauernstruktur","fehler":[{"zug":12,"farbe":"w","gespielt":"Nc3","besser":"f3","warum":"1-2 Sätze","schwaeche":"id oder leer"}],"endspiel":"1-2 Sätze oder leer","uebungen":"1-2 Übungen passend zur aktuellen Woche","fazit":"1 Satz"}
+Regeln: "fehler" enthält 1 bis 3 entscheidende Fehler von Justin. "zug" ist die Zugnummer, "farbe" w oder b, "gespielt" und "besser" in englischer SAN-Notation (N, B, R, Q, K), genau so wie im Zugtext. "besser" muss in der Stellung legal sein. Wenn du dir bei einem besseren Zug nicht sicher bist, nimm den Fehler nicht auf. "schwaeche" ist eine dieser ids, wenn passend: ${(D.schwaechen||[]).map(s=>s.id+" ("+s.titel+")").join(", ")}. Texte auf Deutsch mit deutscher Notation.`;
+}
+async function kiAnalyse(P,sfText,signal){
+  const sample=await getSample(); if(!sample) throw {code:"not_granted"};
+  const res=await sample.json(anaPrompt(P,sfText),{modelTier:"complex",signal,cache:{gcTime:6*3600*1000}});
+  if(!res||typeof res!=="object"||Array.isArray(res)) throw {code:"invalid_json"};
+  res.stockfish=!!sfText;
+  merkeAnalyse(P.gameId,res);
+  const x=(S.games||[]).find(g=>g.id===P.gameId); if(x&&res.fazit){x.kurz=String(res.fazit);save()}
+  return res;
+}
 async function analysierePartie(P){
   const sample=await getSample();
   if(!sample){anaState={gameId:P.gameId,msg:"Die Partie ist gespeichert. Für die Analyse gib erst oben rechts deinen Zugangscode ein."};anaNeu();return}
@@ -1677,26 +1756,18 @@ async function analysierePartie(P){
   if(vlN) vlN.ende(A.ctl.signal.aborted);
   if(A.ctl.signal.aborted){A.busy=false;A.msg="Abgebrochen. Die Partie bleibt gespeichert und du kannst sie dort jederzeit analysieren.";anaNeu();return}
   stand("Der Trainer denkt nach, das kann 1–2 Minuten dauern.");
-  const prompt=trainerContext()+`
-
-Aufgabe: Analysiere diese Partie von Justin (er spielte ${color==="w"?"Weiß":"Schwarz"}). Gegner: ${P.title}. Ergebnis: ${P.ergebnis||"?"}.
-Züge (englische Notation, so wie gespielt): ${hist.map((m,i)=>(i%2===0?(i/2+1)+".":"")+m).join(" ")}
-${sfText?"\n"+sfText+"\nNimm für \"fehler\" die entscheidenden Züge aus dieser Stockfish-Liste, \"besser\" ist der Stockfish-Zug. Erkläre in Worten, warum er besser ist. Die Werte stammen aus einer schnellen Suche, kleine Unterschiede unter etwa einem Bauern sind Rauschen. Ein Zug aus Justins Repertoire ist kein Fehler, wenn er nur wenig verliert.\n":""}
-Antworte NUR mit einem JSON-Objekt in dieser Form:
-{"eroeffnung":"2-3 Sätze: bis wann im Repertoire, wo abgewichen, was richtig wäre","mittelspiel":"2-3 Sätze: Plan zur Bauernstruktur","fehler":[{"zug":12,"farbe":"w","gespielt":"Nc3","besser":"f3","warum":"1-2 Sätze","schwaeche":"id oder leer"}],"endspiel":"1-2 Sätze oder leer","uebungen":"1-2 Übungen passend zur aktuellen Woche","fazit":"1 Satz"}
-Regeln: "fehler" enthält 1 bis 3 entscheidende Fehler von Justin. "zug" ist die Zugnummer, "farbe" w oder b, "gespielt" und "besser" in englischer SAN-Notation (N, B, R, Q, K), genau so wie im Zugtext. "besser" muss in der Stellung legal sein. Wenn du dir bei einem besseren Zug nicht sicher bist, nimm den Fehler nicht auf. "schwaeche" ist eine dieser ids, wenn passend: ${(D.schwaechen||[]).map(s=>s.id+" ("+s.titel+")").join(", ")}. Texte auf Deutsch mit deutscher Notation.`;
   try{
-    const res=await sample.json(prompt,{modelTier:"complex",signal:A.ctl.signal,cache:{gcTime:6*3600*1000}});
-    if(!res||typeof res!=="object"||Array.isArray(res)) throw {code:"invalid_json"};
-    res.stockfish=!!sfText;
+    const res=await kiAnalyse(P,sfText,A.ctl.signal);
     A.busy=false; A.msg=""; A.res=res; A.checked=checkMistakes(res,hist);
-    merkeAnalyse(P.gameId,res);
-    const x=(S.games||[]).find(g=>g.id===P.gameId); if(x&&res.fazit){x.kurz=res.fazit;save()}
     toast("Analyse gespeichert");
   }catch(e){
     A.busy=false; A.msg=e&&e.code==="cancelled"?"Abgebrochen. Die Partie bleibt gespeichert und du kannst sie dort jederzeit analysieren.":e&&e.code==="invalid_json"?"Die Antwort war unvollständig. Die Partie ist gespeichert, tipp dort nochmal auf Jetzt analysieren.":e&&e.code==="rate_limited"?"Nutzungslimit erreicht. Die Partie ist gespeichert, analysieren kannst du sie später.":"Das hat nicht geklappt. Die Partie ist gespeichert, tipp dort nochmal auf Jetzt analysieren.";
   }
   anaNeu();
+  /* aus den eigenen Fehlern gleich Aufgaben bauen (der Verlauf ist jetzt gerechnet) */
+  partienPflegen();
+  const g=allGames().find(x=>x.id===P.gameId);
+  if(g&&!sAuto().aufg[g.id]&&!A.ctl.signal.aborted) vlHole(g.id,hist.length).then(V=>{if(V)return aufgabenAusPartie(g,hist,V)}).then(()=>anaNeu()).catch(e=>console.warn("aufgaben",e));
 }
 function checkMistakes(res,hist,txt){
   const out=[]; const list=Array.isArray(res&&res.fehler)?res.fehler.slice(0,3):[];
@@ -1725,7 +1796,7 @@ function bindAna(A,wo){
     const c=A.checked[+b.dataset.save]; if(!c||!c.valid||c.saved) return;
     const id="c-"+Date.now().toString(36)+b.dataset.save;
     const item={id,gameId:A.gameId||"",seite:A.color||(c.f.farbe==="b"?"b":"w"),schwaeche:c.f.schwaeche||"",quelle:"vs "+(A.title||"Partie")+" · "+fmt(today()),fen:c.fen,frage:"Aus deiner Partie: Hier hast du "+de(c.f.gespielt)+" gespielt. Finde den besseren Zug.",antwort:[c.san],falsch:{[c.f.gespielt]:"Das hast du in der Partie gespielt."},warum:c.f.warum||""};
-    S.custom=[...(S.custom||[]),item].slice(-80); c.saved=true; save(); render(); toast("Im Fehler-Tagebuch gespeichert");
+    S.custom=[...(S.custom||[]),item]; kuerzeCustom(); c.saved=true; save(); render(); toast("Im Fehler-Tagebuch gespeichert");
   });
 }
 
@@ -1756,10 +1827,930 @@ function pruefeUebungen(){
   if(alt.version!==D.version||JSON.stringify(alt.fehler||[])!==JSON.stringify(fehler)){ S.pruefung={version:D.version,d:today(),fehler}; save() }
 }
 
+/* ====================================================================
+   Eröffnungsbuch und Repertoire-Check
+   Das Buch steht hier als Startwert. Claude kann es über den Connector ergänzen:
+   D.buch = [{farbe:"w"|"b", name:"…", zuege:"e4 e5 Nf3 …"}] (englische SAN).
+   Verglichen wird nach Stellung, nicht nach Zugfolge. So zählen auch Zugumstellungen.
+   ==================================================================== */
+const BUCH=[
+ /* Weiß */
+ ["w","Schottisch","e4 e5 Nf3 Nc6 d4 exd4 Nxd4"],
+ ["w","Schottisch · 4…Sf6 (Mieses)","e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6 Nxc6 bxc6 e5 Qe7 Qe2 Nd5 c4",1],
+ ["w","Schottisch · 4…Lc5","e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Nb3 Bb6 a4 a6 Nc3",1],
+ ["w","Schottisch · 4…Lb4+","e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bb4+ c3"],
+ ["w","Schottisch · 4…Sxd4","e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nxd4 Qxd4 Nf6 e5",1],
+ ["w","Schottisch · 4…Dh4","e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Qh4 Nc3"],
+ ["w","Russisch · 2…Sf6","e4 e5 Nf3 Nf6 Nxe5"],
+ ["w","Russisch · Falle","e4 e5 Nf3 Nf6 Nxe5 Nxe4 Qe2 Nf6 Nc6+"],
+ ["w","Elefantengambit","e4 e5 Nf3 d5 exd5"],
+ ["w","Elefantengambit · 3…e4","e4 e5 Nf3 d5 exd5 e4 Qe2"],
+ ["w","Elefantengambit · 3…Dxd5","e4 e5 Nf3 d5 exd5 Qxd5 Nc3"],
+ ["w","Elefantengambit · 3…Ld6","e4 e5 Nf3 d5 exd5 Bd6 d4"],
+ ["w","Sizilianisch · Alapin","e4 c5 c3"],
+ ["w","Alapin · 2…d5","e4 c5 c3 d5 exd5 Qxd5 d4",1],
+ ["w","Alapin · 2…Sf6","e4 c5 c3 Nf6 e5 Nd5 d4",1],
+ ["w","Französisch · Vorstoß","e4 e6 d4 d5 e5",1],
+ ["w","Caro-Kann · Vorstoß","e4 c6 d4 d5 e5",1],
+ ["w","Caro-Kann · 3…Lf5 (Short)","e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 Be3"],
+ ["w","Caro-Kann · 3…c5","e4 c6 d4 d5 e5 c5 dxc5"],
+ ["w","Skandinavisch","e4 d5 exd5 Qxd5 Nc3",1],
+ /* Schwarz gegen 1.e4 */
+ ["b","Offenes Spiel","e4 e5 Nf3 Nc6"],
+ ["b","Italienisch · 3…Lc5","e4 e5 Nf3 Nc6 Bc4 Bc5"],
+ ["b","Italienisch · 4.c3","e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O a6",1],
+ ["b","Spanisch · 3…a6","e4 e5 Nf3 Nc6 Bb5 a6"],
+ ["b","Spanisch · geschlossen","e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O",1],
+ ["b","Vierspringerspiel","e4 e5 Nf3 Nc6 Nc3 Nf6"],
+ ["b","Schottisch mit Schwarz","e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6"],
+ ["b","Frühe Dame · 2.Df3","e4 e5 Qf3 Nc6 Bc4 Nf6"],
+ /* Schwarz gegen 1.d4 und andere */
+ ["b","Nimzo-Indisch","d4 Nf6 c4 e6 Nc3 Bb4"],
+ ["b","Nimzo-Indisch · 4.e3","d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6",1],
+ ["b","Nimzo-Indisch · 4.Dc2","d4 Nf6 c4 e6 Nc3 Bb4 Qc2 O-O a3 Bxc3+ Qxc3 b6 Bg5 Bb7",1],
+ ["b","Nimzo-Indisch · 4.a3","d4 Nf6 c4 e6 Nc3 Bb4 a3 Bxc3+ bxc3 c5",1],
+ ["b","Nimzo-Indisch · 4.f3","d4 Nf6 c4 e6 Nc3 Bb4 f3 d5 a3 Bxc3+ bxc3 c5 cxd5 Nxd5"],
+ ["b","Nimzo-Indisch · 4.Sf3","d4 Nf6 c4 e6 Nc3 Bb4 Nf3 O-O"],
+ ["b","Bogo-Indisch","d4 Nf6 c4 e6 Nf3 Bb4+"],
+ ["b","Katalanisch","d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3 O-O"],
+ ["b","Trompowsky","d4 Nf6 Bg5 e6 e4 h6 Bxf6 Qxf6"],
+ ["b","London-System","d4 Nf6 Bf4 e6 e3 d5 Nf3 c5",1],
+ ["b","London-System","d4 Nf6 Bf4 e6 e3 d5 Bd3 c5"],
+ ["b","London-System","d4 Nf6 Bf4 e6 Nf3 d5 e3 c5"],
+ ["b","London-System","d4 Nf6 Nf3 e6 Bf4 d5 e3 c5"],
+ ["b","Englisch · 1.c4","c4 Nf6 Nc3 e6"],
+ ["b","Englisch · 1.c4","c4 Nf6 Nf3 e6"],
+ ["b","Réti · 1.Sf3","Nf3 Nf6 c4 e6"],
+ ["b","Réti · 1.Sf3","Nf3 Nf6 d4 e6"]
+];
+/* Namen für die Bilanz: der längste passende Anfang gewinnt */
+const ERO=[
+ ["Schottisch","e4 e5 Nf3 Nc6 d4"],["Italienisch","e4 e5 Nf3 Nc6 Bc4"],["Spanisch","e4 e5 Nf3 Nc6 Bb5"],["Vierspringerspiel","e4 e5 Nf3 Nc6 Nc3"],
+ ["Russisch","e4 e5 Nf3 Nf6"],["Philidor","e4 e5 Nf3 d6"],["Elefantengambit","e4 e5 Nf3 d5"],["Königsspringerspiel","e4 e5 Nf3"],
+ ["Königsgambit","e4 e5 f4"],["Wiener Partie","e4 e5 Nc3"],["Läuferspiel","e4 e5 Bc4"],["Mittelgambit","e4 e5 d4"],["Frühe Dame","e4 e5 Qh5"],["Frühe Dame","e4 e5 Qf3"],["Offenes Spiel","e4 e5"],
+ ["Sizilianisch (Alapin)","e4 c5 c3"],["Sizilianisch","e4 c5"],["Französisch","e4 e6"],["Caro-Kann","e4 c6"],["Skandinavisch","e4 d5"],["Pirc","e4 d6"],["Modern","e4 g6"],
+ ["Aljechin","e4 Nf6"],["Nimzowitsch-Verteidigung","e4 Nc6"],["Owen-Verteidigung","e4 b6"],["Königsbauer 1.e4","e4"],
+ ["Nimzo-Indisch","d4 Nf6 c4 e6 Nc3 Bb4"],["Bogo-Indisch","d4 Nf6 c4 e6 Nf3 Bb4"],["Damenindisch","d4 Nf6 c4 e6 Nf3 b6"],["Katalanisch","d4 Nf6 c4 e6 g3"],["Indisch mit …e6","d4 Nf6 c4 e6"],
+ ["Königsindisch","d4 Nf6 c4 g6"],["Trompowsky","d4 Nf6 Bg5"],["London-System","d4 Nf6 Bf4"],["London-System","d4 d5 Bf4"],["Damengambit","d4 d5 c4"],
+ ["Indisch","d4 Nf6"],["Damenbauernspiel","d4 d5"],["Holländisch","d4 f5"],["Damenbauer 1.d4","d4"],
+ ["Englisch","c4"],["Réti","Nf3"],["Larsen","b3"],["Bird","f4"]
+];
+const bKey=fen=>fen.split(" ").slice(0,3).join(" ");
+const plyNr=i=>(Math.floor(i/2)+1)+(i%2?"…":".");
+let buchMerk=null;
+function buch(){
+  const eigen=(D&&Array.isArray(D.buch)?D.buch:[]).filter(b=>b&&typeof b.zuege==="string"&&(b.farbe==="w"||b.farbe==="b"));
+  const roh=[...BUCH.map(b=>({farbe:b[0],name:b[1],zuege:b[2],spiel:!!b[3]})),...eigen.map(b=>({farbe:b.farbe,name:String(b.name||"Repertoire"),zuege:b.zuege,spiel:b.spiel!==false}))];
+  const sig=roh.length+":"+roh.reduce((n,b)=>n+b.zuege.length,0);
+  if(buchMerk&&buchMerk.sig===sig) return buchMerk;
+  const ich={w:{},b:{}}, er={w:{},b:{}}, linien=[], kaputt=[];
+  for(const b of roh){
+    const c=new Chess(), hist=[]; let ok=true;
+    for(const w of b.zuege.replace(/\d+\s*\.+/g," ").split(/\s+/).filter(Boolean)){
+      const k=bKey(c.fen()), am=c.turn(), m=c.move(w,{sloppy:true});
+      if(!m){ok=false;kaputt.push(b.name+": "+w);break}
+      const ziel=(am===b.farbe?ich:er)[b.farbe], e=ziel[k]=ziel[k]||{z:{}}, z=strip(m.san);
+      if(!e.z[z]) e.z[z]=b.name;
+      hist.push(m.san);
+    }
+    if(hist.length) linien.push({farbe:b.farbe,name:b.name,hist,spiel:b.spiel&&ok});
+  }
+  return buchMerk={sig,ich,er,linien,kaputt};
+}
+function eroName(hist){
+  const s=hist.slice(0,10).map(strip).join(" ")+" "; let best="", len=-1;
+  for(const [n,z] of ERO) if(z.length>len&&s.startsWith(z+" ")){best=n;len=z.length}
+  const w=hist.filter((_,i)=>i%2===0).slice(0,4).map(strip);
+  if(w.includes("d4")&&w.includes("Bf4")&&!w.includes("c4")) best="London-System";
+  return best||"Sonstige";
+}
+/* art: "ich" = Justin ist abgewichen, "gegner" = der Gegner hat das Buch verlassen,
+   "ende" = bis zum Ende des Buchs gefolgt, "fremd" = nichts davon passt */
+function repCheck(hist,farbe){
+  const B_=buch(), c=new Chess(), max=Math.min(hist.length,26);
+  let name="", bis=0, letzter=-1, gegner=null;
+  const zug=i=>Math.floor(i/2)+1;
+  for(let i=0;i<max;i++){
+    const k=bKey(c.fen()), z=strip(hist[i]);
+    if(c.turn()===farbe){
+      const e=B_.ich[farbe][k];
+      if(e){
+        if(e.z[z]){name=e.z[z];bis++;letzter=i}
+        else return {art:"ich",ply:i,zug:hist[i],buch:Object.keys(e.z),name:Object.values(e.z)[0],bis,bisZug:letzter<0?0:zug(letzter)};
+      }
+    } else if(!gegner){
+      const e=B_.er[farbe][k];
+      if(e&&!e.z[z]) gegner={ply:i,zug:hist[i]};
+    }
+    if(!c.move(hist[i])) break;
+    if(gegner&&i-Math.max(letzter,gegner.ply)>=8) break;
+  }
+  if(gegner) return {art:"gegner",ply:gegner.ply,zug:gegner.zug,name,bis,bisZug:letzter<0?0:zug(letzter)};
+  if(bis) return {art:"ende",ply:letzter+1,name,bis,bisZug:zug(letzter)};
+  return {art:"fremd",ply:0,zug:hist[0]||"",name:"",bis:0,bisZug:0};
+}
+const REP={};
+function repVon(g){
+  const hist=gameHist(g); if(!hist) return null;
+  const k=g.id+":"+hist.length+":"+buch().sig;
+  return REP[k]||(REP[k]=Object.assign(repCheck(hist,g.farbe),{ero:eroName(hist),hist}));
+}
+function repText(r){
+  const wo=r.name?" ("+esc(r.name)+")":"", z="<b>"+esc(plyNr(r.ply)+de(r.zug))+"</b>";
+  if(r.art==="ich") return (r.bis?"Bis Zug "+r.bisZug+" warst du im Repertoire. Dann hast du ":"Du hast ")+z+" gespielt. Dein Repertoirezug ist <b>"+esc(r.buch.map(de).join(" oder "))+"</b>"+wo+".";
+  if(r.art==="gegner") return (r.bis?"Bis Zug "+r.bisZug+" im Repertoire"+wo+". Dann ist dein Gegner mit "+z+" abgewichen.":"Dein Gegner hat "+z+" gespielt.")+" Dazu steht noch nichts in deinem Eröffnungsbuch.";
+  if(r.art==="ende") return "Du bist bis Zug "+r.bisZug+" im Repertoire geblieben"+wo+". Danach endet dein Eröffnungsbuch.";
+  return "Zu dieser Eröffnung steht noch nichts in deinem Eröffnungsbuch.";
+}
+function repKarte(g){
+  const r=repVon(g); if(!r) return "";
+  const art=r.art==="ich"?"warn":r.art==="ende"||(r.art==="gegner"&&r.bis)?"good":"info";
+  return `<div class="card rep ${art}"><div class="row" style="justify-content:space-between"><b>Eröffnungs-Check</b><span class="tag">${esc(r.ero)}</span></div><p class="small">${repText(r)}</p>
+   ${r.art==="ich"||r.art==="gegner"?`<div class="row"><button class="btn s" type="button" data-ply="${r.art==="ich"?r.ply:r.ply+1}">Stellung zeigen</button></div>`:""}</div>`;
+}
+/* Bilanz je Eröffnung und die Stellen, an denen das Repertoire verlassen wurde */
+function bilanz(){
+  const zeilen={}, ab={}, luecke={};
+  for(const g of allGames()){
+    const r=repVon(g); if(!r) continue;
+    const k=g.farbe+"|"+r.ero, z=zeilen[k]=zeilen[k]||{farbe:g.farbe,name:r.ero,n:0,s:0,l:0,r:0,ab:0}, e=resultOf(g);
+    z.n++; if(e==="Sieg")z.s++; else if(e==="Niederlage")z.l++; else if(e==="Remis")z.r++;
+    const wo=movesText(r.hist.slice(0,r.ply+1));
+    if(r.art==="ich"){z.ab++; const a=ab[wo]=ab[wo]||{wo,buch:r.buch.map(de).join(" oder "),n:0,zuletzt:g}; a.n++}
+    else if(r.art==="gegner"){const a=luecke[wo]=luecke[wo]||{wo,n:0,zuletzt:g}; a.n++}
+  }
+  const ord=o=>Object.values(o).sort((a,b)=>b.n-a.n);
+  return {zeilen:ord(zeilen),ab:ord(ab),luecke:ord(luecke)};
+}
+let blAuf=lsGet("schach-blauf",false);
+function bilanzHTML(){
+  const b=bilanz(); if(!b.zeilen.length) return "";
+  const zeile=z=>{const p=z.s+z.l+z.r?Math.round(z.s/(z.s+z.l+z.r)*100):null;
+    return `<div class="bl-z"><div style="min-width:0"><span class="tag ${z.farbe==="w"?"w":"s"}">${z.farbe==="w"?"Weiß":"Schwarz"}</span> <b>${esc(z.name)}</b>
+     <div class="small muted">${z.n} ${z.n===1?"Partie":"Partien"} · ${z.s} ${z.s===1?"Sieg":"Siege"} · ${z.l} ${z.l===1?"Niederlage":"Niederlagen"}${z.r?" · "+z.r+" Remis":""}${z.ab?` · <span class="bl-ab">${z.ab}× abgewichen</span>`:""}</div></div><b class="bl-p">${p==null?"–":p+" %"}</b></div>`};
+  const nAb=b.ab.reduce((n,a)=>n+a.n,0);
+  return `<section><details class="fx-gruppe" id="bl-auf" ${blAuf?"open":""}><summary><span style="min-width:0">Bilanz je Eröffnung</span><span class="fx-zahl">${nAb?nAb+"× abgewichen":b.zeilen.length+" Eröffnungen"}</span></summary>
+   <div class="fx-body"><div class="bl">${b.zeilen.map(zeile).join("")}</div>
+   ${b.ab.length?`<div class="bl-block"><b>Hier hast du dein Repertoire verlassen</b>${b.ab.slice(0,6).map(a=>`<p class="small"><span class="nota">${esc(a.wo)}</span> statt <b class="nota">${esc(a.buch)}</b> <span class="muted">· ${a.n}×, zuletzt vs ${esc(a.zuletzt.gegner)}</span></p>`).join("")}</div>`:""}
+   ${b.luecke.length?`<div class="bl-block"><b>Dazu fehlt noch eine Antwort im Buch</b>${b.luecke.slice(0,6).map(a=>`<p class="small"><span class="nota">${esc(a.wo)}</span> <span class="muted">· ${a.n}×, zuletzt vs ${esc(a.zuletzt.gegner)}</span></p>`).join("")}<p class="small muted">Frag Claude nach einer Antwort darauf. Er trägt sie in dein Eröffnungsbuch ein, und der Check kennt sie dann.</p></div>`:""}</div></details></section>`;
+}
+/* hält den gespeicherten Kurzstand aktuell: Eröffnungsname je Partie und Ergebnis des Checks (Claude liest das im Überblick) */
+function partienPflegen(){
+  if(!stateGeladen||typeof Chess==="undefined") return;
+  let neu=false; const rep={};
+  for(const g of allGames()){
+    const r=repVon(g); if(!r) continue;
+    if(g.own&&!g.eroeffnung){const x=(S.games||[]).find(y=>y.id===g.id); if(x){x.eroeffnung=r.ero;neu=true}}
+    rep[g.id]={a:r.art,e:r.ero,k:r.bis,z:r.zug,v:r.hist.slice(0,r.ply+(r.art==="ende"||r.art==="fremd"?0:1)).join(" ")};
+    if(r.art==="ich") rep[g.id].b=r.buch;
+    if(r.name) rep[g.id].n=r.name;
+  }
+  if(JSON.stringify(S.rep||{})!==JSON.stringify(rep)){S.rep=rep;neu=true}
+  if(neu) save();
+}
+
+/* ====================================================================
+   Partien von chess.com holen und im Hintergrund auswerten
+   ==================================================================== */
+const CC={laeuft:false,fehler:""}, AUTO={laeuft:false,id:"",msg:"",ctl:null};
+const sAuto=()=>{const a=S.auto||(S.auto={});a.fehl=a.fehl||{};a.aufg=a.aufg||{};return a};
+const warte=ms=>new Promise(r=>setTimeout(r,ms));
+const zeitText=t=>{const d=new Date(t);return (dstr(d)===today()?"heute":fmt(dstr(d)))+" "+pad(d.getHours())+":"+pad(d.getMinutes())};
+const aufListe=()=>view==="bibliothek"&&bibTab==="partien"&&!gv&&!B;
+
+/* ein Monat aus dem öffentlichen Archiv: erst über den eigenen Server, sonst direkt */
+async function ccMonat(name,jahr,monat){
+  const j=String(jahr), m=pad(monat);
+  try{
+    const r=await SERVER.roh("GET","/api/chesscom?name="+encodeURIComponent(name)+"&jahr="+j+"&monat="+m);
+    if(r.ok){const d=await r.json(); if(d&&Array.isArray(d.games)) return d.games}
+  }catch(e){ if(e&&e.code==="not_granted") throw e }
+  let r;
+  try{ r=await fetch("https://api.chess.com/pub/player/"+encodeURIComponent(name.toLowerCase())+"/games/"+j+"/"+m,{cache:"no-store"}) }
+  catch(e){ throw {code:"offline"} }
+  if(r.status===404) return [];
+  if(!r.ok) throw {code:"chesscom",status:r.status};
+  return ((await r.json())||{}).games||[];
+}
+async function ccHole(manuell){
+  if(CC.laeuft) return;
+  const name=String((D.spieler||{}).chesscom||"").trim();
+  if(!name||!stateGeladen||typeof Chess==="undefined"){ if(manuell) toast(!name?"In deinen Daten steht kein chess.com-Name.":"Erst mit dem Server verbinden."); return }
+  const cc0=S.cc||{};
+  if(!manuell&&(cc0.aus||(cc0.t&&Date.now()-cc0.t<15*60*1000))){ autoLauf(); return }
+  CC.laeuft=true; CC.fehler=""; if(manuell) AUTO.kiAus=false; ccZeig();
+  let neu=0;
+  try{
+    const jetzt=new Date(), erst=!cc0.seit, ab=erst?Math.floor(Date.now()/1000)-7*86400:cc0.seit;
+    const monate=[[jetzt.getFullYear(),jetzt.getMonth()+1]];
+    if(jetzt.getDate()<=(erst?7:2)){const v=new Date(jetzt.getFullYear(),jetzt.getMonth()-1,1);monate.unshift([v.getFullYear(),v.getMonth()+1])}
+    let spiele=[]; for(const [y,m] of monate) spiele=spiele.concat(await ccMonat(name,y,m));
+    spiele=spiele.filter(x=>x&&x.pgn&&(!x.rules||x.rules==="chess")&&(x.end_time||0)>ab).sort((a,b)=>a.end_time-b.end_time).slice(erst?-15:-30);
+    let seit=cc0.seit||0; const ich=name.toLowerCase();
+    for(const x of spiele){
+      seit=Math.max(seit,x.end_time||0);
+      let p=null; try{p=parsePgn(x.pgn)}catch(e){}
+      if(!p||p.freieStellung) continue;
+      const hist=p.history(); if(hist.length<6) continue;
+      const h=p.header(), w=String((x.white&&x.white.username)||h.White||""), b=String((x.black&&x.black.username)||h.Black||"");
+      const color=w.toLowerCase()===ich?"w":b.toLowerCase()===ich?"b":null; if(!color) continue;
+      const m=merkePartie({hist,color,headers:h,title:(color==="w"?b:w)||"Unbekannt",datum:dstr(new Date(x.end_time*1000)),auto:true,zeit:x.time_class||"",url:x.url||""});
+      if(m.neu) neu++;
+    }
+    S.cc=Object.assign({},S.cc,{t:Date.now(),seit:seit||ab,name,zuletztNeu:neu}); delete S.cc.fehler; save();
+  }catch(e){
+    const c=e&&e.code;
+    if(c==="not_granted") zeigeZugang();
+    CC.fehler=c==="offline"?"chess.com ist gerade nicht erreichbar. Prüf dein Internet und tipp nochmal.":c==="chesscom"?"chess.com hat mit Fehler "+e.status+" geantwortet. Später nochmal versuchen.":"Das Holen hat nicht geklappt. Später nochmal versuchen.";
+    S.cc=Object.assign({},S.cc,{fehler:today()+" "+(c||"Fehler")}); save();
+    console.warn("chess.com",e);
+  }
+  CC.laeuft=false;
+  if(neu){ partienPflegen(); toast(neu===1?"1 neue Partie von chess.com geladen":neu+" neue Partien von chess.com geladen") }
+  else if(manuell) toast(CC.fehler||"Keine neuen Partien auf chess.com.");
+  if(aufListe()) render(); else ccZeig();
+  autoLauf();
+}
+function ccStatus(){
+  const cc=S.cc||{}, name=(D.spieler||{}).chesscom||"";
+  if(CC.laeuft) return "Holt neue Partien von chess.com …";
+  if(CC.fehler) return CC.fehler;
+  if(AUTO.laeuft) return "Wertet im Hintergrund aus: "+AUTO.msg;
+  const offen=stateGeladen?autoOffen().length:0;
+  if(cc.aus) return "Automatik ist aus. Neue Partien holst du mit dem Knopf.";
+  if(cc.t) return "Zuletzt geprüft: "+zeitText(cc.t)+(offen?" · "+(offen===1?"1 Partie wartet":offen+" Partien warten")+" noch auf die Auswertung":" · alles ausgewertet");
+  return "Holt deine neuen Partien von chess.com"+(name?" ("+name+")":"")+" und wertet sie im Hintergrund aus.";
+}
+function ccZeig(){const o=$("#cc-msg"); if(o)o.textContent=ccStatus(); const b=$("#cc-go"); if(b)b.disabled=CC.laeuft}
+function autoZeig(voll){
+  if(voll&&aufListe()) return render();
+  ccZeig();
+  if(view==="bibliothek"&&bibTab==="partien"&&gv&&!B){const g=allGames().find(x=>x.id===gv.id); if(g&&(voll||AUTO.id===g.id)){const h=gameHist(g); if(h)zeigeAnalyse(g,h)}}
+}
+
+/* Was fehlt einer Partie noch? Analyse (nur importierte) und Aufgaben aus den eigenen Fehlern */
+const autoKuratiert=g=>!g.own&&gameItems(g).some(i=>!i.auto);
+function autoOffen(){
+  const a=sAuto(), ana=S.anaIds||[];
+  return allGames().filter(g=>(a.fehl[g.id]||0)<2&&((g.own&&!ana.includes(g.id))||!a.aufg[g.id]));
+}
+function autoSchwer(g){
+  const hist=gameHist(g); if(!hist) return false;
+  return (g.own&&!(S.anaIds||[]).includes(g.id))||(!autoKuratiert(g)&&!vlLokal(g.id,hist.length));
+}
+async function autoLauf(){
+  if(AUTO.laeuft||!stateGeladen||typeof Chess==="undefined"||!SERVER.token()||(S.cc||{}).aus) return;
+  AUTO.laeuft=true; AUTO.kiAus=false; AUTO.ctl=new AbortController(); let schwer=0;
+  try{
+    for(let runde=0;runde<60;runde++){
+      const g=autoOffen().find(x=>(schwer<6||!autoSchwer(x))&&!(AUTO.kiAus&&sAuto().aufg[x.id])); if(!g) break;
+      /* dem Nutzer nicht in die Quere kommen: eigene Analysen, Verläufe und Übungen am Brett gehen vor */
+      if(document.hidden||B||vlJob||(anaState&&anaState.busy)){await warte(3000);if(B)runde--;continue}
+      if(autoSchwer(g)) schwer++;
+      await autoPartie(g);
+    }
+  }catch(e){ if(!(e&&e.code==="cancelled")) console.warn("auto",e) }
+  AUTO.laeuft=false; AUTO.id=""; AUTO.msg=""; autoZeig(true);
+}
+async function autoPartie(g){
+  const hist=gameHist(g), sig=AUTO.ctl.signal, fehl=()=>{const a=sAuto();a.fehl[g.id]=(a.fehl[g.id]||0)+1;save()};
+  if(!hist){sAuto().fehl[g.id]=9;save();return}
+  AUTO.id=g.id; AUTO.msg="vs "+g.gegner; autoZeig(true);
+  const stand=t=>{AUTO.msg="vs "+g.gegner+" · "+t;autoZeig()};
+  const kur=autoKuratiert(g);
+  let V=await vlHole(g.id,hist.length);
+  if(!V&&!kur){ stand("Stockfish prüft die Partie"); V=await rechneVerlauf(g,hist,sig,(n,v)=>stand("Stockfish prüft Zug "+n+" von "+v)) }
+  if(sig.aborted) throw {code:"cancelled"};
+  if(!V&&!kur){fehl();return}
+  if(!sAuto().aufg[g.id]){ stand("baut Aufgaben aus deinen Fehlern"); await aufgabenAusPartie(g,hist,V) }
+  if(g.own&&!(S.anaIds||[]).includes(g.id)&&!AUTO.kiAus){
+    stand("der Trainer schreibt die Analyse");
+    try{ await kiAnalyse({gameId:g.id,hist,color:g.farbe,title:g.gegner,ergebnis:g.ergebnis},V?sfTextAus(V,hist,g.farbe):"",sig) }
+    catch(e){
+      const c=e&&e.code;
+      if(c==="not_granted"||c==="cancelled") throw e;
+      /* KI gerade nicht erreichbar oder am Limit: den Text holt der nächste Lauf nach. Stockfish und die Aufgaben gehen für die anderen Partien weiter */
+      if(["rate_limited","anbieter","offline","server"].includes(c)) AUTO.kiAus=true; else fehl();
+    }
+  }
+}
+/* rechnet den Verlauf einer Partie, ohne die Anzeige zu stören. Gibt ihn zurück oder null */
+async function rechneVerlauf(g,hist,signal,melde){
+  const n=vlMitlauf(g.id,hist); if(!n) return vlHole(g.id,hist.length);
+  await FAKT.partie(hist,null,melde||(()=>{}),signal,n.punkt);
+  n.ende(!!(signal&&signal.aborted));
+  return vlPasst(VL[g.id],hist.length)?VL[g.id]:null;
+}
+/* dieselbe Fehlerliste, die Stockfish beim Durchrechnen liefert, aus einem fertigen Verlauf */
+function sfTextAus(V,hist,farbe){
+  const f=vlEigene(V,{farbe}).map(e=>{const a=V.v[e.p-1],b=V.v[e.p],k=e.p%2===1?1:-1;
+    return {weg:(chance(a)-chance(b))*k,t:"Zug "+(Math.floor((e.p-1)/2)+1)+" "+(e.p%2===1?"Weiß":"Schwarz")+": gespielt "+hist[e.p-1]+", Wert von "+vlZahl(a)+" auf "+vlZahl(b)+", besser wäre "+V.b[e.p]}}).sort((x,y)=>y.weg-x.weg).slice(0,5);
+  return "Stockfish 10 hat jede Stellung der Partie kurz geprüft (Werte aus Sicht von Weiß in Bauern).\n"+(f.length?"Größte Fehler:\n"+f.map(x=>"- "+x.t).join("\n"):"Grobe Fehler (mehr als ein Bauer Verlust) hat Stockfish nicht gefunden.");
+}
+
+/* ====================================================================
+   Aufgaben aus den eigenen Partien
+   Aus jeder ausgewerteten Partie werden bis zu drei eigene Fehler zu Aufgaben, dazu die Stelle,
+   an der das Repertoire verlassen wurde. Stockfish prüft jede Stellung vorher noch einmal gründlicher.
+   ==================================================================== */
+const AKK={p:"den Bauern",n:"den Springer",b:"den Läufer",r:"den Turm",q:"die Dame",k:"den König"};
+function lageDu(cp,farbe){
+  const a=Math.abs(cp), ich=(cp>0)===(farbe==="w");
+  if(a>=MATT) return ich?"du hast mattgesetzt":"du bist matt";
+  if(a>=15000) return (ich?"du setzt":"dein Gegner setzt")+" matt in "+(MATT-a);
+  if(a<40) return "die Stellung ist ausgeglichen";
+  return (ich?"du stehst":"dein Gegner steht")+" "+(a<120?"leicht besser":a<300?"besser":a<700?"klar besser":"auf Gewinn");
+}
+function lageNach(cp,farbe){
+  const a=Math.abs(cp), ich=(cp>0)===(farbe==="w");
+  if(a>=15000) return (ich?"setzt du":"setzt dein Gegner")+" matt"+(a<MATT?" in "+(MATT-a):"");
+  if(a<40) return "ist die Stellung ausgeglichen";
+  return (ich?"stehst du":"steht dein Gegner")+" "+(a<120?"leicht besser":a<300?"besser":a<700?"klar besser":"auf Gewinn");
+}
+function erklaere(fen,best,nach,gespielt,nr){
+  const c=new Chess(fen), am=c.turn(), k=am==="w"?1:-1, m=c.move(best.san), t=[];
+  if(!m) return "";
+  if(c.in_checkmate()) t.push(de(m.san)+" ist Matt.");
+  else{
+    if(m.captured){
+      const feld=m.flags.includes("e")?m.to[0]+m.from[1]:m.to; let frei=false; try{frei=FAKT.decker(fen,feld,1)===0}catch(e){}
+      t.push(de(m.san)+" schlägt "+AKK[m.captured]+" auf "+feld+(frei?", "+(m.captured==="q"?"sie":"er")+" war ungedeckt":"")+".");
+    } else t.push("Besser war "+de(m.san)+(/\+/.test(m.san)?" mit Schach":"")+".");
+    t.push(best.cp*k>=15000?"Das führt zum Matt in "+(MATT-Math.abs(best.cp))+".":"Danach "+lageNach(best.cp,am)+".");
+  }
+  t.push(nach.san?"Auf "+de(gespielt)+" folgte dagegen "+de(nach.san)+", und danach "+lageNach(nach.cp,am)+".":"Nach "+de(gespielt)+" war die Partie remis.");
+  if(best.linie.length>1) t.push("Linie: "+movesText(best.linie.slice(0,5),nr,am==="b")+".");
+  return t.join(" ");
+}
+function katFuer(fen,best,nach,k){
+  const m=new Chess(fen).move(best.san); if(!m) return "";
+  if(fxSw("schach")&&(/[+#]/.test(m.san)||best.cp*k>=15000||nach.cp*k<=-15000)) return "schach";
+  if(fxSw("nehmen")&&m.captured) return "nehmen";
+  if(fxSw("zaehlen")&&nach.san&&/x/.test(nach.san)) return "zaehlen";
+  return "";
+}
+/* p = Halbzug des Fehlers (1 = erster Zug von Weiß). Gibt die Aufgabe zurück oder null, wenn die Stelle nicht eindeutig genug ist */
+async function baueAufgabe(g,hist,p){
+  const c=new Chess(); for(let i=0;i<p-1;i++) c.move(hist[i]);
+  const fen=c.fen(), am=c.turn(), k=am==="w"?1:-1, gespielt=hist[p-1], gs=strip(gespielt), nr=Math.floor((p-1)/2)+1;
+  const L=await FAKT.lage(fen,1500,3); if(!L||!L.length) return null;
+  const m=c.move(gespielt); if(!m||c.in_checkmate()) return null;
+  let nach={cp:0,san:"",linie:[]};
+  if(!c.game_over()){const N=await FAKT.lage(c.fen(),900,1); if(!N||!N.length) return null; nach=N[0]}
+  const cb=chance(L[0].cp)*k, selbst=L.find(x=>strip(x.san)===gs), cg=Math.max(chance(nach.cp)*k,selbst?chance(selbst.cp)*k:-1);
+  if(cb-cg<.15) return null;
+  const gut=L.filter(x=>cb-chance(x.cp)*k<=.06&&strip(x.san)!==gs); if(!gut.length) return null;
+  return {id:"c-"+g.id+"-"+p,auto:true,gameId:g.id,ply:p,seite:g.farbe,schwaeche:katFuer(fen,gut[0],nach,k),quelle:"vs "+g.gegner+" · "+fmt(g.datum),fen,
+    frage:"Aus deiner Partie gegen "+g.gegner+" (Zug "+nr+"): Du hast "+de(gespielt)+" gespielt. Finde den besseren Zug.",
+    antwort:gut.map(x=>x.san),falsch:{[gs]:"Das hast du in der Partie gespielt."+(nach.san?" Darauf kam "+de(nach.san)+".":"")},warum:erklaere(fen,gut[0],nach,gespielt,nr)};
+}
+/* höchstens 200 eigene Aufgaben: zuerst fallen die ältesten abgeschlossenen weg */
+function kuerzeCustom(){
+  let c=S.custom||[]; const max=200; if(c.length<=max) return;
+  const weg=new Set(c.filter(istFertig).slice(0,c.length-max).map(x=>x.id));
+  c=c.filter(x=>!weg.has(x.id)); S.custom=c.length>max?c.slice(-max):c;
+}
+async function aufgabenAusPartie(g,hist,V){
+  const neu=[]; let wieder=0;
+  const da={}; allItems().forEach(it=>{try{da[bKey(fxFen(it))]=it}catch(e){}});
+  const r=repVon(g), kur=autoKuratiert(g);
+  /* 1. Eröffnung: Stelle, an der das Repertoire verlassen wurde */
+  if(r&&r.art==="ich"){
+    const c=new Chess(); for(let i=0;i<r.ply;i++) c.move(hist[i]);
+    const alt=da[bKey(c.fen())];
+    if(alt){
+      const f=(S.fertig||{})[alt.id];
+      if(f&&f.d&&g.datum&&f.d<g.datum&&(alt.antwort||[]).some(x=>r.buch.includes(strip(x)))){delete S.fertig[alt.id]; if(S.srs[alt.id])S.srs[alt.id].due=today(); wieder++}
+    } else neu.push({id:"c-"+g.id+"-rep",auto:true,gameId:g.id,seite:g.farbe,schwaeche:fxSw("start")?"start":"",quelle:"vs "+g.gegner+" · "+fmt(g.datum),line:hist.slice(0,r.ply),
+      frage:"Eröffnung aus deiner Partie gegen "+g.gegner+": Hier hast du "+de(hist[r.ply])+" gespielt. Was ist dein Repertoirezug?",
+      antwort:r.buch.slice(),falsch:{[strip(hist[r.ply])]:"Das hast du in der Partie gespielt."},warum:"In deinem Repertoire steht hier "+r.buch.map(de).join(" oder ")+(r.name?" ("+r.name+")":"")+"."});
+  }
+  /* 2. Taktik: die größten eigenen Fehler aus dem Stockfish-Verlauf */
+  if(V&&!kur){
+    const kand=vlEigene(V,g).map(e=>({p:e.p,weg:(chance(V.v[e.p-1])-chance(V.v[e.p]))*(e.p%2===1?1:-1)+(e.u.name==="Matt verpasst"?.25:0)}))
+      .filter(e=>!(r&&r.art==="ich"&&e.p-1===r.ply)).sort((x,y)=>y.weg-x.weg).slice(0,5);
+    for(const e of kand){
+      if(neu.filter(x=>x.fen).length>=3) break;
+      let it=null; try{it=await baueAufgabe(g,hist,e.p)}catch(x){console.warn("aufgabe",x)}
+      if(it&&!da[bKey(it.fen)]&&!neu.some(x=>x.fen&&bKey(x.fen)===bKey(it.fen))) neu.push(it);
+    }
+  }
+  /* 3. speichern (S kann inzwischen neu geladen sein, deshalb erst hier lesen) */
+  if(neu.length){const ids=new Set((S.custom||[]).map(x=>x.id)); S.custom=[...(S.custom||[]),...neu.filter(x=>!ids.has(x.id))]; kuerzeCustom()}
+  if(V||kur) sAuto().aufg[g.id]={d:today(),n:neu.length};
+  save();
+  if(neu.length||wieder){
+    toast((neu.length?(neu.length===1?"1 neue Aufgabe":neu.length+" neue Aufgaben")+" aus deiner Partie vs "+g.gegner:"")+(wieder?(neu.length?" · ":"")+"1 alter Fehler ist wieder offen":""));
+    if(view==="fehler"&&!review) render();
+  }
+  return neu.length;
+}
+
+/* ====================================================================
+   Am Brett: Erst prüfen, Zählen, Ausspielen gegen Stockfish
+   B ist die laufende Übung (wie review bei der Wiederholung), sonst null.
+   ==================================================================== */
+let B=null, SPDEF={}, spStufe=lsGet("schach-stufe","leicht");
+const STUFE={leicht:"leicht",mittel:"mittel",stark:"stark"};
+const sDrill=()=>S.drill||(S.drill={});
+const zufall=a=>a[Math.floor(Math.random()*a.length)];
+function mische(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const mitZug=(fen,f)=>{const t=fen.split(" ");t[1]=f;t[3]="-";return t.join(" ")};
+const vlLokal=(id,n)=>{if(vlPasst(VL[id],n))return VL[id];if(vlPasst(VORAB[id],n))return VORAB[id];const x=lsGet("schach-vl-"+id,null);return vlPasst(x,n)?(VL[id]=x):null};
+const figFeld=(c,s)=>{const p=c.get(s);return p?(p.type==="p"?"Bauer ":({k:"K",q:"D",r:"T",b:"L",n:"S"})[p.type])+s:s};
+const proz=(a,b)=>b?Math.round(a/b*100)+" %":"–";
+function bHin(){bibTab="brett";lsSet("schach-bibtab","brett");gv=null;review=null;if(view!=="bibliothek")go("bibliothek");else{render();window.scrollTo(0,0)}}
+function bZeig(v){({pruef:prZeig,zaehl:zlZeig,spiel:spZeig})[B.art](v)}
+function bKopf(titel){return `<section><div class="row" style="justify-content:space-between"><span class="eyebrow">${esc(titel)} · ${Math.min(B.pos+1,B.list.length)} von ${B.list.length}</span><button class="btn s" type="button" id="b-x">Beenden</button></div><div class="bar"><i style="width:${B.pos/B.list.length*100}%"></i></div></section>`}
+/* Stellungen aus den letzten Partien, in denen Justin am Zug war */
+function partieStellungen(max){
+  const out=[];
+  for(const g of allGames().slice(0,max||25)){
+    const hist=gameHist(g); if(!hist) continue;
+    const V=vlLokal(g.id,hist.length), c=new Chess();
+    for(let i=0;i<hist.length&&i<90;i++){
+      if(i>=8&&c.turn()===g.farbe) out.push({fen:c.fen(),g,i,best:(V&&V.b&&V.b[i+1])||""});
+      if(!c.move(hist[i])) break;
+    }
+  }
+  return out;
+}
+const stQuelle=s=>"vs "+s.g.gegner+" · Zug "+(Math.floor(s.i/2)+1);
+
+/* ---------- Übersicht ---------- */
+function vBrett(v){
+  const d=sDrill(), pr=d.pruef||{}, zl=d.zaehl||{}, sp=d.spiel||{}, n=curWeek(), ew=endspielFuer(W(n));
+  const rep=spRepertoire(), eig=spEigene();
+  SPDEF={}; [...ENDSPIELE,...rep,...eig].forEach(x=>SPDEF[x.id]=x);
+  const zeile=x=>{const j=(sp.je||{})[x.id];
+    return `<button class="card bt-z" type="button" data-sp="${esc(x.id)}"><span style="min-width:0"><b>${x.farbe&&x.ziel==="spiel"?`<span class="tag ${x.farbe==="w"?"w":"s"}">${x.farbe==="w"?"Weiß":"Schwarz"}</span> `:""}${esc(x.titel)}</b><span class="small muted">${esc(x.text||"")}</span></span>${j&&j.g?`<span class="bt-ok">${j.g}× geschafft</span>`:j&&j.n?`<span class="bt-ok" style="color:var(--muted)">${j.n}× gespielt</span>`:'<span class="muted" aria-hidden="true">›</span>'}</button>`};
+  v.innerHTML=bibHead()+`<section><h1>Am Brett üben</h1><p class="muted">Drei Übungen gegen deine häufigsten Fehler. Die Stellungen kommen aus deinen eigenen Partien und Aufgaben.</p></section>
+  <section class="card"><b>Erst prüfen, dann ziehen</b><p class="small">Du tippst zuerst jede Figur an, die Schach geben kann, dann alles, was du schlagen kannst. Erst danach darfst du ziehen.</p>
+   <p class="small muted">${pr.n?`${pr.n} Stellungen bisher · Schachs gefunden ${proz(pr.sG,pr.sA)} · Schlagzüge gefunden ${proz(pr.cG,pr.cA)} · gute Züge ${proz(pr.z,pr.n)}`:"Noch nicht gespielt."}</p>
+   <div class="row"><button class="btn p" type="button" id="bt-pr">5 Stellungen starten</button></div></section>
+  <section class="card"><b>Angreifer und Verteidiger zählen</b><p class="small">Eine Figur ist markiert. Du zählst, wie oft sie angegriffen und wie oft sie gedeckt ist, und sagst, ob sich das Schlagen lohnt.</p>
+   <p class="small muted">${zl.n?`${zl.n} Stellungen bisher · alles richtig ${proz(zl.r,zl.n)} · Urteil richtig ${proz(zl.u,zl.n)}`:"Noch nicht gespielt."}</p>
+   <div class="row"><button class="btn p" type="button" id="bt-zl">5 Stellungen starten</button></div></section>
+  <section><h2>Gegen Stockfish ausspielen</h2><p class="muted small">Du spielst die Stellung zu Ende. Stockfish sagt dir sofort, wenn du patzt, und du kannst den Zug zurücknehmen.</p>
+   ${ew?`<div class="hero"><span class="eyebrow">Endspiel der Woche ${n}</span><b>${esc(ew.titel)}</b><p class="small">${esc(ew.text)}</p><div class="row"><button class="btn p" type="button" data-sp="${esc(ew.id)}">Jetzt üben</button></div></div>`:""}</section>
+  <section><h2>Endspiele <small>${ENDSPIELE.length}</small></h2><p class="small muted">Stockfish verteidigt hier immer so gut wie möglich.</p><div class="bt-liste">${ENDSPIELE.map(zeile).join("")}</div></section>
+  <section><h2>Aus deinem Repertoire <small>${rep.length}</small></h2><p class="small muted">Du übernimmst nach dem letzten Buchzug. So stark spielt Stockfish hier und bei deinen Partien:</p>
+   <div class="seg" role="group" aria-label="Spielstärke">${[["leicht","Leicht"],["mittel","Mittel"],["stark","Stark"]].map(x=>`<button type="button" data-stufe="${x[0]}" aria-pressed="${spStufe===x[0]}">${x[1]}</button>`).join("")}</div>
+   <div class="bt-liste">${rep.map(zeile).join("")}</div></section>
+  ${eig.length?`<section><h2>Aus deinen Partien <small>${eig.length}</small></h2><p class="small muted">Die Stellung kurz vor deinem größten Fehler. Mach es diesmal besser und spiel sie aus.</p><div class="bt-liste">${eig.map(zeile).join("")}</div></section>`:""}`;
+  bindBibHead(v);
+  $("#bt-pr").onclick=()=>prStart();
+  $("#bt-zl").onclick=()=>zlStart();
+  v.querySelectorAll("[data-sp]").forEach(b=>b.onclick=()=>{const x=SPDEF[b.dataset.sp]; if(x)spStart(x)});
+  v.querySelectorAll("[data-stufe]").forEach(b=>b.onclick=()=>{spStufe=b.dataset.stufe;lsSet("schach-stufe",spStufe);v.querySelectorAll("[data-stufe]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.stufe===spStufe))});
+}
+
+/* ---------- 1. Erst prüfen, dann ziehen ---------- */
+function prInfo(fen){
+  try{
+    const c=new Chess(fen); if(c.game_over()) return null;
+    const ms=c.moves({verbose:true}), schach=new Map(), schlag=new Map(), rein=(m,k,san)=>{if(!m.has(k))m.set(k,[]);m.get(k).push(san)};
+    for(const m of ms){
+      if(/[+#]/.test(m.san)) rein(schach,m.from,m.san);
+      if(m.captured) rein(schlag,m.flags.includes("e")?m.to[0]+m.from[1]:m.to,m.san);
+    }
+    return {zuege:ms.length,schach,schlag,am:c.turn()};
+  }catch(e){return null}
+}
+function prStart(heute){
+  if(typeof Chess==="undefined"){toast("Das Brett konnte nicht laden. Seite neu öffnen.");return}
+  const alt=lsGet("schach-pr-alt",[]), kand=[];
+  for(const it of allItems()){try{kand.push({fen:fxFen(it),quelle:it.quelle||"Aufgabe",antwort:it.antwort,warum:it.warum||"",g:istFertig(it)?1:2})}catch(e){}}
+  for(const s of partieStellungen(25)) kand.push({fen:s.fen,quelle:stQuelle(s),best:s.best,g:s.best?3:.4});
+  let pool=kand.filter(k=>!alt.includes(bKey(k.fen))); if(pool.length<12) pool=kand;
+  const list=[], keys=[];
+  for(let n=0;n<500&&list.length<5&&pool.length;n++){
+    let r=Math.random()*pool.reduce((a,k)=>a+k.g,0), i=0; for(;i<pool.length-1&&(r-=pool[i].g)>0;i++);
+    const k=pool.splice(i,1)[0], key=bKey(k.fen); if(keys.includes(key)) continue;
+    const info=prInfo(k.fen); if(!info||info.zuege<4||info.schach.size+info.schlag.size<1) continue;
+    keys.push(key); list.push(Object.assign(k,info));
+  }
+  if(!list.length){toast("Noch keine passenden Stellungen. Importiere erst eine Partie.");return}
+  lsSet("schach-pr-alt",[...alt,...keys].slice(-40));
+  B={art:"pruef",list,pos:0,sum:{n:0,sA:0,sG:0,cA:0,cG:0,f:0,z:0},heute:!!heute};
+  prLade(); bHin();
+}
+function prLade(){
+  const P=B.list[B.pos];
+  Object.assign(B,{c:new Chess(P.fen),phase:"schach",gef:new Set(),marks:{},sel:null,last:null,fb:"",hin:"",zeilen:[],ueb:{schach:[],schlag:[]},cur:{sA:0,sG:0,cA:0,cG:0,f:0}});
+}
+function prZeig(v){
+  const P=B.list[B.pos]; if(!P) return prEnde(v);
+  const w=P.am==="w", ph=B.phase;
+  const titel={schach:"1. Tippe jede deiner Figuren an, die Schach geben kann.",schlag:"2. Tippe jede gegnerische Figur an, die du schlagen kannst.",zug:"3. Jetzt zieh."}[ph]||"";
+  const knopf=ph==="schach"?(B.gef.size?"Das sind alle Schachs":"Es gibt kein Schach"):ph==="schlag"?(B.gef.size?"Das sind alle Schlagzüge":"Es gibt nichts zu schlagen"):"";
+  v.innerHTML=bKopf("Erst prüfen")+`<div class="trainer-box"><div class="board" id="board" role="grid" aria-label="Schachbrett"></div>
+   <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><div class="card">
+    <div class="row"><span class="tag">${esc(P.quelle)}</span><span class="turn"><i style="background:${w?"#fbfaf6":"#1b1f1c"}"></i>${w?"Weiß":"Schwarz"} am Zug</span></div>
+    ${B.zeilen.map(z=>`<p class="small">${z}</p>`).join("")}
+    ${titel?`<p class="ask">${titel}</p>`:""}${B.hin?`<p class="small pr-hin">${esc(B.hin)}</p>`:""}
+    ${knopf?`<div class="row"><button class="btn p" type="button" id="pr-ok">${knopf}</button></div>`:""}</div>
+   <div id="fb">${B.fb}</div></div></div>`;
+  drawBoard($("#board"),B.c,{flip:!w,last:B.last,sel:B.sel,marks:B.marks,onTap:prTap});
+  $("#b-x").onclick=()=>{B.abbruch=true;B.pos=B.list.length;render()};
+  const ok=$("#pr-ok"); if(ok) ok.onclick=prWeiter;
+  const nx=$("#pr-next"); if(nx) nx.onclick=()=>{B.pos++; if(B.pos<B.list.length) prLade(); render(); window.scrollTo(0,0)};
+}
+function prTap(s){
+  const P=B.list[B.pos], c=B.c, p=c.get(s), ph=B.phase;
+  if(ph==="schach"||ph==="schlag"){
+    const eigen=!!p&&p.color===P.am;
+    if(ph==="schach"?!eigen:(!p||eigen)) return;
+    Object.keys(B.marks).forEach(k=>{if(B.marks[k]!=="ok")delete B.marks[k]});
+    B.hin="";
+    if((ph==="schach"?P.schach:P.schlag).has(s)){B.gef.add(s);B.marks[s]="ok"}
+    else if(!B.gef.has(s)){B.cur.f++;B.marks[s]="no";B.hin=ph==="schach"?figFeld(c,s)+" kann kein Schach geben.":figFeld(c,s)+" kannst du nicht schlagen."}
+    return render();
+  }
+  if(ph!=="zug") return;
+  if(B.sel){const mv=c.moves({square:B.sel,verbose:true}).find(m=>m.to===s); if(mv) return prZug(mv)}
+  B.marks={}; B.sel=p&&p.color===c.turn()&&B.sel!==s?s:null; render();
+}
+function prWeiter(){
+  const P=B.list[B.pos], ph=B.phase, menge=ph==="schach"?P.schach:P.schlag, alle=[...menge.keys()], gef=alle.filter(s=>B.gef.has(s)), ueb=alle.filter(s=>!B.gef.has(s));
+  const zuege=ks=>esc(ks.map(s=>menge.get(s).map(de).join(", ")).join(", "));
+  const name=ph==="schach"?"Schachs":"Schlagzüge";
+  let z;
+  if(!alle.length) z=`<b>${name}:</b> Richtig, es gibt ${ph==="schach"?"kein Schach":"nichts zu schlagen"}.`;
+  else if(!ueb.length) z=`<b>${name}:</b> Alle gefunden (<span class="nota">${zuege(alle)}</span>).`;
+  else z=`<b>${name}:</b> ${gef.length} von ${alle.length} gefunden. <span class="pr-hin">Übersehen: <span class="nota">${zuege(ueb)}</span></span>`;
+  B.zeilen.push(z);
+  if(ph==="schach"){B.cur.sA=alle.length;B.cur.sG=gef.length;B.ueb.schach=ueb}else{B.cur.cA=alle.length;B.cur.cG=gef.length;B.ueb.schlag=ueb}
+  B.marks={}; ueb.forEach(s=>B.marks[s]="miss");
+  B.gef=new Set(); B.hin=""; B.phase=ph==="schach"?"schlag":"zug";
+  render();
+}
+async function prZug(mv){
+  const me=B, P=B.list[B.pos], fenVor=B.c.fen(), weiss=B.c.turn()==="w";
+  const m=B.c.move({from:mv.from,to:mv.to,promotion:"q"}); B.sel=null; B.last=[m.from,m.to]; B.marks={}; B.phase="fertig";
+  const san=strip(m.san);
+  /* war der beste Zug einer, der beim Prüfen übersehen wurde? */
+  const verpasst=best=>{const b=best?new Chess(fenVor).move(best,{sloppy:true}):null; if(!b||strip(b.san)===san) return "";
+    if(/[+#]/.test(b.san)&&B.ueb.schach.includes(b.from)) return " Das war ein Schach, das du beim Prüfen übersehen hast.";
+    if(b.captured&&B.ueb.schlag.includes(b.flags.includes("e")?b.to[0]+b.from[1]:b.to)) return " Das war ein Schlagzug, den du beim Prüfen übersehen hast.";
+    return ""};
+  const fertig=(k,t,x)=>{
+    if(B!==me||B.list[B.pos]!==P) return;
+    B.fb=`<div class="fb ${k}"><b>${esc(t)}</b>${x?`<p>${x}</p>`:""}<div class="row"><button class="btn p" type="button" id="pr-next">${B.pos+1<B.list.length?"Nächste Stellung":"Auswertung"}</button></div></div>`;
+    const d=sDrill(), pr=d.pruef=d.pruef||{n:0,sA:0,sG:0,cA:0,cG:0,f:0,z:0}, cu=B.cur;
+    for(const o of [pr,B.sum]){o.n++;o.sA+=cu.sA;o.sG+=cu.sG;o.cA+=cu.cA;o.cG+=cu.cG;o.f+=cu.f;if(k==="good")o.z++}
+    pr.d=today(); save(); render();
+  };
+  if(P.antwort){
+    const ok=P.antwort.map(strip).includes(san);
+    return fertig(ok?"good":"bad",ok?"Richtig: "+de(m.san):"Nicht der beste Zug: "+de(m.san),(ok?"":"Lösung: <b>"+esc(de(P.antwort[0]))+"</b>."+verpasst(P.antwort[0])+" ")+esc(P.warum));
+  }
+  if(B.c.in_checkmate()) return fertig("good","Matt: "+de(m.san),"");
+  B.fb='<div class="fb info"><p>Stockfish prüft deinen Zug …</p></div>'; render();
+  const k=weiss?1:-1, L=await FAKT.lage(fenVor,1000,1), N=L&&L.length&&!B.c.game_over()?await FAKT.lage(B.c.fen(),700,1):null;
+  if(!L||!L.length||!N||!N.length) return fertig("info","Gespielt: "+de(m.san),B.c.game_over()?"Die Partie ist damit remis.":"Stockfish läuft gerade nicht, deshalb gibt es keine Bewertung."+(P.best?" In der schnellen Prüfung war "+esc(de(P.best))+" der beste Zug.":""));
+  const best=L[0], weg=chance(best.cp)*k-chance(N[0].cp)*k, gleich=strip(best.san)===san;
+  const danach="Danach "+lageNach(N[0].cp,weiss?"w":"b")+".";
+  if(gleich||weg<.08) fertig("good",(gleich?"Bester Zug: ":"Guter Zug: ")+de(m.san),danach);
+  else if(weg<.2) fertig("warn","Spielbar: "+de(m.san),"Besser war <b>"+esc(de(best.san))+"</b>."+verpasst(best.san)+" "+danach);
+  else fertig("bad","Fehler: "+de(m.san),"Besser war <b>"+esc(de(best.san))+"</b>"+(best.linie.length>1?" (Linie: <span class=\"nota\">"+esc(best.linie.slice(0,4).map(de).join(" "))+"</span>)":"")+"."+verpasst(best.san)+" "+danach);
+}
+function prEnde(v){
+  const s=B.sum;
+  v.innerHTML=`<section class="card"><span class="eyebrow">Erst prüfen fertig</span><h1>${s.n} ${s.n===1?"Stellung":"Stellungen"} geprüft</h1>
+   ${s.n?`<div class="stats"><div class="stat"><b>${s.sG}<small class="muted">/${s.sA}</small></b><span>Schachs gefunden</span></div><div class="stat"><b>${s.cG}<small class="muted">/${s.cA}</small></b><span>Schlagzüge gefunden</span></div><div class="stat"><b>${s.f}</b><span>falsch getippt</span></div><div class="stat"><b>${s.z}<small class="muted">/${s.n}</small></b><span>gute Züge</span></div></div>
+   <p class="muted">${s.sG===s.sA&&s.cG===s.cA?"Nichts übersehen. Genau so prüfst du auch in der Partie.":"Was du hier übersiehst, übersiehst du auch in der Partie. Geh die Figuren immer in derselben Reihenfolge durch."}</p>`:'<p class="muted">Du hast vor der ersten Stellung beendet.</p>'}
+   <div class="row"><button class="btn p" type="button" id="b-neu">Nochmal 5 Stellungen</button><button class="btn" type="button" id="b-zu">Fertig</button></div></section>`;
+  $("#b-neu").onclick=()=>prStart(B.heute);
+  $("#b-zu").onclick=()=>{B=null;render()};
+}
+
+/* ---------- 2. Angreifer und Verteidiger zählen ---------- */
+const ZL=(()=>{
+  const W={p:1,n:3,b:3,r:5,q:9,k:0};
+  const xy=s=>[s.charCodeAt(0)-97,+s[1]-1], sq=(x,y)=>x<0||x>7||y<0||y>7?null:FILES[x]+(y+1);
+  /* Figuren von farbe, die auf feld zielen: direkt, und Läufer, Türme, Damen, die in einer Linie dahinter stehen */
+  function ziele(c,feld,farbe){
+    const [fx,fy]=xy(feld), direkt=[], dahinter=[];
+    for(const [dx,dy] of [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]]){const s=sq(fx+dx,fy+dy), p=s&&c.get(s); if(p&&p.color===farbe&&p.type==="n") direkt.push(s)}
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){
+      const gerade=!dx||!dy; let erste=true;
+      for(let n=1;n<8;n++){
+        const s=sq(fx+dx*n,fy+dy*n); if(!s) break;
+        const p=c.get(s); if(!p) continue;
+        if(p.color!==farbe) break;
+        if(p.type==="q"||p.type===(gerade?"r":"b")){(erste?direkt:dahinter).push(s);erste=false;continue}
+        if(erste&&n===1&&(p.type==="k"||(p.type==="p"&&!gerade&&dy===(farbe==="w"?-1:1)))) direkt.push(s);
+        break;
+      }
+    }
+    return {direkt,dahinter};
+  }
+  /* bester Abtausch auf feld für die Seite am Zug. An der Wurzel muss geschlagen werden, danach darf man aufhören */
+  function tausch(c,feld,wurzel){
+    let best=wurzel?-99:0, linie=[];
+    for(const m of c.moves({verbose:true})){
+      if(m.to!==feld||!m.captured||m.flags.includes("e")||(m.promotion&&m.promotion!=="q")) continue;
+      c.move(m); const r=tausch(c,feld,false); c.undo();
+      const g=W[m.captured]+(m.promotion?8:0)-r.w;
+      if(g>best){best=g;linie=[m.san,...r.linie]}
+    }
+    return {w:best,linie};
+  }
+  /* dürfen alle direkten Verteidiger wirklich zurückschlagen (keiner gefesselt)? */
+  function deckerOk(fen,feld,direkt,ang,ver){
+    const c=new Chess(mitZug(fen,ver)), p=c.get(feld); c.remove(feld); c.put({type:p.type,color:ang},feld);
+    const leg=new Set(c.moves({verbose:true}).filter(m=>m.to===feld&&m.captured).map(m=>m.from));
+    return direkt.every(s=>c.get(s).type==="k"||leg.has(s));
+  }
+  /* alle zählbaren Felder einer Stellung, in der ich am Zug ist */
+  function kandidaten(fen,ich){
+    const c0=new Chess(fen); if(c0.turn()!==ich||c0.in_check()||c0.game_over()) return [];
+    const er=ich==="w"?"b":"w", out=[];
+    for(const wer of ["ich","gegner"]){
+      const f2=wer==="ich"?fen:mitZug(fen,er), c=new Chess(f2), ang=wer==="ich"?ich:er, ver=wer==="ich"?er:ich, legal={};
+      c.moves({verbose:true}).forEach(m=>{if(m.captured&&m.captured!=="k"&&!m.flags.includes("e"))(legal[m.to]=legal[m.to]||new Set()).add(m.from)});
+      for(const feld of Object.keys(legal)){
+        const p=c.get(feld), A=ziele(c,feld,ang), V=ziele(c,feld,ver);
+        if(/[18]/.test(feld[1])&&A.direkt.some(s=>c.get(s).type==="p")) continue;
+        if(A.direkt.some(s=>c.get(s).type!=="k"&&!legal[feld].has(s))) continue;
+        if(!deckerOk(f2,feld,V.direkt,ang,ver)) continue;
+        const t=tausch(c,feld,true); if(t.w===-99) continue;
+        out.push({fen:f2,ich,feld,wer,typ:p.type,an:[...A.direkt,...A.dahinter],ve:[...V.direkt,...V.dahinter],w:t.w,linie:t.linie});
+      }
+    }
+    return out;
+  }
+  return {kandidaten,ziele,tausch};
+})();
+function zlStart(){
+  if(typeof Chess==="undefined"){toast("Das Brett konnte nicht laden. Seite neu öffnen.");return}
+  const extra=mische(allItems().filter(it=>it.schwaeche==="zaehlen")).map(it=>{try{const fen=fxFen(it),am=fen.split(" ")[1];return it.seite&&it.seite!==am?null:{fen,ich:am,quelle:it.quelle||"Aufgabe"}}catch(e){return null}}).filter(Boolean).slice(0,2);
+  const st=mische(partieStellungen(25)).slice(0,160).map(s=>({fen:s.fen,ich:s.g.farbe,quelle:stQuelle(s)}));
+  const list=[], keys=[]; let nIch=0, nGeg=0;
+  for(const streng of [true,false]){
+    for(const s of [...extra,...st]){
+      if(list.length>=5) break;
+      let ks=[]; try{ks=ZL.kandidaten(s.fen,s.ich)}catch(e){}
+      ks=ks.filter(k=>k.an.length>=1&&k.an.length<=4&&k.ve.length<=4&&(k.ve.length>=1||k.an.length>=2)&&!keys.includes(bKey(k.fen)+k.feld));
+      if(!ks.length) continue;
+      ks.forEach(k=>k.pkt=(k.an.length+k.ve.length>=3?2:0)+(k.w<0?1.5:0)+(k.w>0?1:0)+(k.typ!=="p"?.5:0)+((k.wer==="ich"?nIch-nGeg:nGeg-nIch)>0?-1.5:0)+Math.random());
+      const k=ks.sort((a,b)=>b.pkt-a.pkt)[0]; if(streng&&k.pkt<2.5) continue;
+      keys.push(bKey(k.fen)+k.feld); k.wer==="ich"?nIch++:nGeg++; list.push(Object.assign(k,{quelle:s.quelle}));
+    }
+  }
+  if(!list.length){toast("Noch keine passenden Stellungen. Importiere erst eine Partie.");return}
+  B={art:"zaehl",list:mische(list),pos:0,sum:{n:0,r:0,a:0,v:0,u:0},wahl:{},phase:"frage",fb:""};
+  bHin();
+}
+function zlZeig(v){
+  const P=B.list[B.pos]; if(!P) return zlEnde(v);
+  const c=new Chess(P.fen), t=c.get(P.feld), fem=t.type==="q", fertig=B.phase==="fertig", ich=P.wer==="ich", wa=B.wahl;
+  const wen=ich?(fem?"die gegnerische Dame":"den gegnerischen "+({p:"Bauern",n:"Springer",b:"Läufer",r:"Turm"})[t.type]):(fem?"deine Dame":"deinen "+({p:"Bauern",n:"Springer",b:"Läufer",r:"Turm"})[t.type]);
+  const urteil=ich?["gewinnst du Material","ist es ein gleicher Tausch","verlierst du Material"]:["verlierst du Material","ist es ein gleicher Tausch","verliert er Material"];
+  const soll={an:Math.min(4,P.an.length),ve:Math.min(4,P.ve.length),ur:P.w>0?0:P.w===0?1:2};
+  const chips=(k,texte)=>texte.map((x,i)=>`<button class="chip ${fertig?(i===soll[k]?"ri":wa[k]===i?"fa":""):""}" type="button" data-zl="${k}" data-i="${i}" aria-pressed="${!fertig&&wa[k]===i}" ${fertig?"disabled":""}>${x}</button>`).join("");
+  const zahlen=["0","1","2","3","4+"];
+  v.innerHTML=bKopf("Zählen")+`<div class="trainer-box"><div class="board" id="board" role="grid" aria-label="Schachbrett"></div>
+   <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><div class="card">
+    <div class="row"><span class="tag">${esc(P.quelle)}</span><span class="tag ${P.ich==="w"?"w":"s"}">du: ${P.ich==="w"?"Weiß":"Schwarz"}</span></div>
+    <p class="ask">${ich?"Du bist am Zug. Schau auf "+wen+" auf "+P.feld+".":"Schau auf "+wen+" auf "+P.feld+". Stell dir vor, dein Gegner wäre am Zug."}</p>
+    <div class="zl-f"><span class="small">Wie viele ${ich?"deiner Figuren":"gegnerische Figuren"} greifen ${fem?"sie":"ihn"} an?</span><div class="chips">${chips("an",zahlen)}</div></div>
+    <div class="zl-f"><span class="small">Wie viele Figuren decken ${fem?"sie":"ihn"}?</span><div class="chips">${chips("ve",zahlen)}</div></div>
+    <div class="zl-f"><span class="small">${ich?"Wenn du schlägst, …":"Wenn dein Gegner schlägt, …"}</span><div class="chips">${chips("ur",urteil)}</div></div>
+    ${fertig?"":`<div class="row"><button class="btn p" type="button" id="zl-ok" ${["an","ve","ur"].every(k=>wa[k]!=null)?"":"disabled"}>Prüfen</button></div><p class="small muted">Zähl auch Figuren mit, die in einer Linie hintereinander stehen.</p>`}</div>
+   <div id="fb">${B.fb}</div></div></div>`;
+  const marks={[P.feld]:"hl"}; if(fertig){P.an.forEach(s=>marks[s]="miss");P.ve.forEach(s=>marks[s]="ok")}
+  drawBoard($("#board"),c,{flip:P.ich==="b",marks,onTap:null});
+  $("#b-x").onclick=()=>{B.abbruch=true;B.pos=B.list.length;render()};
+  v.querySelectorAll("[data-zl]").forEach(b=>b.onclick=()=>{B.wahl[b.dataset.zl]=+b.dataset.i;render()});
+  const ok=$("#zl-ok"); if(ok) ok.onclick=()=>{
+    const r={a:wa.an===soll.an,v:wa.ve===soll.ve,u:wa.ur===soll.ur}, alles=r.a&&r.v&&r.u;
+    const liste=a=>a.length?a.map(s=>figFeld(c,s)).join(", "):"keine";
+    const wert=Math.abs(P.w), was=wert===1?"einen Bauern":wert===3?"eine Leichtfigur":wert===5?"einen Turm":wert===9?"eine Dame":"Material im Wert von "+wert+" Bauern";
+    const wer=ich?"du":"dein Gegner", erg=P.w>0?wer+" gewinn"+(ich?"st ":"t ")+was:P.w<0?wer+" verlier"+(ich?"st ":"t ")+was:"gleicher Tausch";
+    B.fb=`<div class="fb ${alles?"good":r.u?"warn":"bad"}"><b>${alles?"Alles richtig":r.u?"Urteil richtig, aber verzählt":"Nicht ganz"}</b>
+     <p class="small"><b>Angreifer (orange):</b> ${esc(liste(P.an))}</p><p class="small"><b>Verteidiger (grün):</b> ${esc(liste(P.ve))}</p>
+     <p class="small"><b>Abtausch:</b> <span class="nota">${esc(P.linie.map(de).join(" "))}</span> · ${esc(erg)}.</p>
+     <div class="row"><button class="btn p" type="button" id="zl-next">${B.pos+1<B.list.length?"Nächste Stellung":"Auswertung"}</button></div></div>`;
+    const d=sDrill(), zl=d.zaehl=d.zaehl||{n:0,r:0,a:0,v:0,u:0};
+    for(const o of [zl,B.sum]){o.n++;if(alles)o.r++;if(r.a)o.a++;if(r.v)o.v++;if(r.u)o.u++}
+    zl.d=today(); save(); B.phase="fertig"; render();
+  };
+  const nx=$("#zl-next"); if(nx) nx.onclick=()=>{B.pos++;B.wahl={};B.phase="frage";B.fb="";render();window.scrollTo(0,0)};
+}
+function zlEnde(v){
+  const s=B.sum;
+  v.innerHTML=`<section class="card"><span class="eyebrow">Zählen fertig</span><h1>${s.r} von ${s.n} ganz richtig</h1>
+   ${s.n?`<div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="stat"><b>${s.a}<small class="muted">/${s.n}</small></b><span>Angreifer</span></div><div class="stat"><b>${s.v}<small class="muted">/${s.n}</small></b><span>Verteidiger</span></div><div class="stat"><b>${s.u}<small class="muted">/${s.n}</small></b><span>Urteil</span></div></div>
+   <p class="muted">Faustregel: Schlagen lohnt sich, wenn du mehr Angreifer hast als der Gegner Verteidiger. Bei gleicher Zahl entscheidet, wer die billigere Figur zuerst hergibt.</p>`:'<p class="muted">Du hast vor der ersten Stellung beendet.</p>'}
+   <div class="row"><button class="btn p" type="button" id="b-neu">Nochmal 5 Stellungen</button><button class="btn" type="button" id="b-zu">Fertig</button></div></section>`;
+  $("#b-neu").onclick=()=>zlStart();
+  $("#b-zu").onclick=()=>{B=null;render()};
+}
+
+/* ---------- 3. Ausspielen gegen Stockfish ---------- */
+/* ziel: "matt" = mattsetzen, "material" = Vorsprung von ab Bauerneinheiten erreichen (z. B. Dame holen),
+   "remis" = Remis halten, "spiel" = frei spielen. Endspiele verteidigt Stockfish immer mit voller Stärke. */
+const ENDSPIELE=[
+ {id:"e-dame",wo:/Dame und König/,titel:"Matt mit Dame und König",text:"Setz den schwarzen König matt. Achte auf Patt.",fen:"8/8/3k4/8/8/8/8/3QK3 w - - 0 1",farbe:"w",ziel:"matt"},
+ {id:"e-turm",wo:/Turm und König/,titel:"Matt mit Turm und König",text:"Dränge den König an den Rand und setz ihn matt.",fen:"8/8/3k4/8/8/8/8/4K2R w - - 0 1",farbe:"w",ziel:"matt"},
+ {id:"e-quadrat",wo:/Quadrat/,titel:"Quadratregel",text:"Kommt der Bauer durch, oder holt ihn der König ein? Bring ihn zur Dame.",fen:"8/8/8/8/P6k/8/8/7K w - - 0 1",farbe:"w",ziel:"material",ab:9},
+ {id:"e-oppo",wo:/Opposition|Schlüsselfeld|Bauer gegen König/,titel:"Opposition: Bauern durchbringen",text:"Dein König steht vor dem Bauern. Nimm die Opposition und führ den Bauern zur Dame.",fen:"8/8/4k3/8/4K3/8/4P3/8 w - - 0 1",farbe:"w",ziel:"material",ab:9},
+ {id:"e-oppo-r",titel:"Opposition: Remis halten",text:"Du hast nur den König. Bleib vor dem Bauern und halte Remis.",fen:"8/8/8/4k3/4P3/4K3/8/8 w - - 0 1",farbe:"b",ziel:"remis",halten:25},
+ {id:"e-tuerme",wo:/hinter Freibauern/,titel:"Turm hinter den Freibauern",text:"Stell deinen Turm hinter den a-Bauern und spiel auf Gewinn.",fen:"8/r4pkp/P5p1/8/8/6P1/5PKP/2R5 w - - 0 1",farbe:"w",ziel:"spiel"},
+ {id:"e-philidor",wo:/Philidor/,titel:"Philidor-Stellung",text:"Halte Remis: Lass den Turm auf der 6. Reihe, bis der Bauer vorrückt. Dann gib von hinten Schach.",fen:"4k3/R7/1r6/4PK2/8/8/8/8 w - - 0 1",farbe:"b",ziel:"remis",halten:25},
+ {id:"e-lucena",wo:/Lucena/,titel:"Lucena-Stellung (Brückenbau)",text:"Bau mit dem Turm auf der 4. Reihe die Brücke und bring den Bauern zur Dame.",fen:"6K1/3k2P1/8/8/8/8/7r/4R3 w - - 0 1",farbe:"w",ziel:"material",ab:5},
+ {id:"e-damebauer",wo:/Dame gegen Bauer/,titel:"Dame gegen Bauer auf der 7. Reihe",text:"Zwing den König mit Schachs vor seinen Bauern und hol dann deinen König heran.",fen:"7K/6Q1/8/8/8/8/2kp4/8 w - - 0 1",farbe:"w",ziel:"material",ab:9}
+];
+const endspielFuer=w=>ENDSPIELE.find(e=>e.wo&&e.wo.test(String((w||{}).endspiel||"")))||null;
+function spRepertoire(){
+  return buch().linien.filter(l=>l.spiel).map(l=>{let h=0;const s=l.farbe+l.hist.join(" ");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+    return {id:"r-"+h.toString(36),titel:l.name,text:movesText(l.hist),linie:l.hist,farbe:l.farbe,ziel:"spiel"}});
+}
+/* aus den letzten ausgewerteten Partien: die Stellung vor dem größten eigenen Patzer, wenn bis dahin noch nichts verloren war */
+function spEigene(){
+  const out=[];
+  for(const g of allGames().slice(0,30)){
+    if(out.length>=6) break;
+    const hist=gameHist(g); if(!hist) continue;
+    const V=vlLokal(g.id,hist.length); if(!V) continue;
+    const k=g.farbe==="w"?1:-1;
+    const e=vlEigene(V,g).map(x=>({p:x.p,vor:V.v[x.p-1],weg:(chance(V.v[x.p-1])-chance(V.v[x.p]))*k})).filter(x=>x.weg>=.3&&chance(x.vor)*k>-.35).sort((a,b)=>b.weg-a.weg)[0];
+    if(e) out.push({id:"p-"+g.id+"-"+e.p,titel:"vs "+g.gegner+" · Zug "+(Math.floor((e.p-1)/2)+1),text:"Vor "+de(hist[e.p-1])+": "+lageDu(e.vor,g.farbe)+". "+fmt(g.datum),linie:hist.slice(0,e.p-1),farbe:g.farbe,ziel:"spiel"});
+  }
+  return out;
+}
+const spBauern=(c,farbe)=>{let n=0;for(const f of FILES)for(let r=2;r<=7;r++){const p=c.get(f+r);if(p&&p.type==="p"&&p.color===farbe)n++}return n};
+const spMaterial=(c,farbe)=>{const W={p:1,n:3,b:3,r:5,q:9,k:0};let d=0;for(const f of FILES)for(let r=1;r<=8;r++){const p=c.get(f+r);if(p)d+=(p.color===farbe?1:-1)*W[p.type]}return d};
+function spStart(def,heute){
+  if(typeof Chess==="undefined"){toast("Das Brett konnte nicht laden. Seite neu öffnen.");return}
+  const c=def.fen?new Chess(def.fen):new Chess();
+  for(const m of (def.linie||[])) if(!c.move(m)){toast("Diese Stellung lässt sich nicht aufbauen.");return}
+  const t=c.fen().split(" ");
+  B={art:"spiel",def,c,farbe:def.farbe,ziel:def.ziel||"spiel",stufe:(def.ziel||"spiel")==="spiel"?spStufe:"stark",nr0:+t[5]||1,schwarz0:t[1]==="b",diff0:spMaterial(c,def.farbe),
+    zuege:[],nIch:0,urteile:[],sel:null,last:null,warte:false,fb:"",ende:null,zurueck:0,tipps:0,tipp:null,vor:null,cp:null,gedreht:false,heute:!!heute};
+  bHin(); spWeiter();
+}
+/* nach jedem Zug: Ende prüfen, sonst ist Justin oder Stockfish dran */
+function spWeiter(){
+  if(spAus()){spZaehl();return render()}
+  if(B.c.turn()===B.farbe){B.warte=false;B.vor=FAKT.lage(B.c.fen(),700,1);spVerloren(B);return render()}
+  B.warte=true; render(); spMotor(B);
+}
+/* Sieht es nach dem Material verloren aus, entscheidet Stockfish. So zählt es nicht als verloren,
+   wenn du die frische Dame oder den Turm im nächsten Zug einfach zurückschlagen kannst. */
+async function spVerloren(me){
+  const w=me.weg; if(!w) return;
+  const fen=me.c.fen(), v=await me.vor;
+  if(B!==me||me.ende||me.c.fen()!==fen||!v||!v.length) return;
+  const cp=v[0].cp*(me.farbe==="w"?1:-1);
+  if(w==="material"?cp>=300:cp>-300) return;
+  me.ende=w==="material"?{ok:false,titel:"Der Vorteil ist weg.",text:"Mit dem Material auf dem Brett ist das nicht mehr zu gewinnen."}
+    :{ok:false,titel:"Das war nicht zu halten.",text:"Dein Gegner hat entscheidend Material gewonnen. Probier es nochmal."};
+  spZaehl(); render();
+}
+function spAus(){
+  const c=B.c, ich=B.farbe, n=B.nIch, zuege=n===1?"1 Zug":n+" Zügen";
+  if(c.in_checkmate()){B.ende=c.turn()!==ich?{ok:true,titel:"Matt! Geschafft in "+zuege+".",text:""}:{ok:false,titel:"Du bist matt.",text:"Schau dir an, welches Schach du nicht gesehen hast, und probier es nochmal."};return true}
+  if(c.in_stalemate()||c.in_draw()||c.in_threefold_repetition()){
+    const wie=c.in_stalemate()?"Patt":c.in_threefold_repetition()?"Remis durch dreimal dieselbe Stellung":"Remis";
+    B.ende=B.ziel==="remis"?{ok:true,titel:wie+": Remis gehalten.",text:"Genau das war die Aufgabe."}
+      :B.ziel==="spiel"?{ok:null,titel:wie+" nach "+zuege+".",text:""}
+      :{ok:false,titel:wie+".",text:c.in_stalemate()?"Der König hatte kein Feld mehr und stand nicht im Schach. Lass ihm immer ein Feld, bis du matt setzt.":"Hier war ein Sieg drin."};
+    return true;
+  }
+  if(c.turn()!==ich) return false;
+  const d=spMaterial(c,ich);
+  if(B.ziel==="material"){
+    if(d>=B.def.ab){B.ende={ok:true,titel:"Geschafft in "+zuege+".",text:"Der Rest ist Technik: Mit diesem Vorsprung setzt du matt, das kennst du aus den ersten Endspielen."};return true}
+    /* Vorsprung weg und kein eigener Bauer mehr, der noch zur Dame laufen kann: spVerloren fragt Stockfish */
+    B.weg=d<=0&&B.diff0>0&&!spBauern(c,ich)?"material":"";
+  }
+  if(B.ziel==="remis"){
+    B.weg=d<=B.diff0-5?"remis":"";
+    if(!B.weg&&n>=(B.def.halten||25)&&(B.cp==null||B.cp*(ich==="w"?1:-1)>-250)){B.ende={ok:true,titel:n+" Züge gehalten: Remis.",text:"So verteidigt man diese Stellung."};return true}
+  }
+  return false;
+}
+/* Ergebnis einmal in die Statistik schreiben */
+function spZaehl(){
+  const e=B.ende; if(!e||e.gez) return; e.gez=true;
+  if(!B.nIch||(e.ok===null&&B.ziel!=="spiel")) return;
+  const d=sDrill(), sp=d.spiel=d.spiel||{n:0,g:0,je:{}}; sp.je=sp.je||{};
+  const j=sp.je[B.def.id]=sp.je[B.def.id]||{n:0,g:0};
+  sp.n++; j.n++; if(e.ok){sp.g++;j.g++}
+  sp.d=today();
+  const ks=Object.keys(sp.je); if(ks.length>80) ks.slice(0,ks.length-80).forEach(k=>delete sp.je[k]);
+  save();
+  if(B.heute&&e.ok) setStep("end",true);
+}
+async function spMotor(me){
+  const c=me.c, fen=c.fen(), t0=Date.now();
+  const p={leicht:{t:3,n:6,T:220,z:.1,ms:500},mittel:{t:6,n:4,T:70,z:0,ms:700},stark:{t:16,n:1,T:0,z:0,ms:1200}}[me.stufe]||{t:16,n:1,T:0,z:0,ms:1200};
+  const L=await FAKT.lage(fen,p.ms,p.n,p.t);
+  if(B!==me||c.fen()!==fen) return;
+  if(!L||!L.length){me.ende={ok:null,gez:true,titel:"Stockfish antwortet nicht.",text:"Auf diesem Gerät läuft Stockfish gerade nicht. Öffne die App neu und versuch es nochmal."};return render()}
+  const k=c.turn()==="w"?1:-1, wert=x=>Math.max(-3000,Math.min(3000,x.cp*k));
+  let pick=L[0];
+  if(p.T&&L.length>1){
+    if(Math.random()<p.z) pick=zufall(L);
+    else{const b=wert(L[0]), g=L.map(x=>Math.exp(-(b-wert(x))/p.T)); let r=Math.random()*g.reduce((a,x)=>a+x,0), i=0; for(;i<L.length-1&&(r-=g[i])>0;i++); pick=L[i]}
+  }
+  await warte(Math.max(0,450-(Date.now()-t0)));
+  if(B!==me||c.fen()!==fen) return;
+  const m=c.move(pick.san); if(!m) return;
+  me.zuege.push(m.san); me.last=[m.from,m.to];
+  spWeiter();
+}
+function spTap(s){
+  const c=B.c; if(B.ende||B.warte||c.turn()!==B.farbe) return;
+  const p=c.get(s);
+  if(B.sel){const mv=c.moves({square:B.sel,verbose:true}).find(m=>m.to===s); if(mv) return spZug(mv)}
+  B.sel=p&&p.color===c.turn()&&B.sel!==s?s:null; render();
+}
+async function spZug(mv){
+  const me=B, c=B.c, weiss=c.turn()==="w", vorP=B.vor, idx=B.zuege.length;
+  const m=c.move({from:mv.from,to:mv.to,promotion:"q"}); if(!m) return;
+  const fen=c.fen();
+  Object.assign(B,{sel:null,last:[m.from,m.to],fb:"",tipp:null,warte:true}); B.zuege.push(m.san); B.nIch++;
+  if(c.game_over()) return spWeiter();
+  render();
+  /* Zug bewerten: Stellung davor (schon vorgerechnet) gegen Stellung danach */
+  const vor=await vorP, nach=vor&&vor.length?await FAKT.lage(fen,500,1):null;
+  if(B!==me||c.fen()!==fen) return;
+  if(vor&&vor.length&&nach&&nach.length){
+    const a=vor[0].cp, b=nach[0].cp, k=weiss?1:-1, weg=(chance(a)-chance(b))*k;
+    const art=strip(vor[0].san)===strip(m.san)?"":weg>=.3?"Patzer":weg>=.2?"Fehler":k*a>=MATT-3&&k*b<15000?"Matt verpasst":"";
+    B.cp=b;
+    if(art){
+      B.urteile.push({idx,san:m.san,best:vor[0].san,art});
+      B.fb=`<div class="fb ${art==="Fehler"?"warn":"bad"}"><b>${art}: ${esc(de(m.san))}</b><p>Besser war <b>${esc(de(vor[0].san))}</b>. Nimm den Zug zurück und probier es nochmal, oder spiel einfach weiter.</p><div class="row"><button class="btn p" type="button" id="sp-zur2">Zug zurücknehmen</button></div></div>`;
+    }
+  }
+  spWeiter();
+}
+function spZurueck(){
+  const c=B.c; if(B.ende||B.warte||c.turn()!==B.farbe||!B.nIch) return;
+  c.undo(); c.undo(); B.zuege.splice(-2); B.nIch--; B.zurueck++;
+  B.urteile=B.urteile.filter(u=>u.idx<B.zuege.length);
+  Object.assign(B,{sel:null,last:null,fb:"",tipp:null,cp:null});
+  spWeiter();
+}
+async function spTipp(){
+  const me=B, fen=B.c.fen(), v=await B.vor;
+  if(B!==me||B.c.fen()!==fen||B.ende) return;
+  if(!v||!v.length){toast("Stockfish hat gerade keinen Tipp.");return}
+  const m=new Chess(fen).move(v[0].san); if(!m) return;
+  B.tipps++; B.tipp=[m.from,m.to]; B.sel=null;
+  B.fb=`<div class="fb info"><p><b>Tipp:</b> ${esc(de(v[0].san))}</p></div>`; render();
+}
+function spZeig(v){
+  if(B.ende) return spEndeZeig(v);
+  const d=B.def, c=B.c, dran=c.turn()===B.farbe&&!B.warte, w=c.turn()==="w";
+  v.innerHTML=`<section><div class="row" style="justify-content:space-between"><span class="eyebrow">Ausspielen · Stockfish ${STUFE[B.stufe]}</span><button class="btn s" type="button" id="b-x">Beenden</button></div>
+   <h1 style="font-size:1.3rem">${esc(d.titel)}</h1><p class="small muted">${esc(d.ziel==="spiel"&&d.linie&&d.id[0]==="r"?"Spiel die Stellung nach deinen Buchzügen aus.":d.text||"")}</p></section>
+  <div class="trainer-box"><div><div class="board" id="board" role="grid" aria-label="Schachbrett"></div>
+   <div class="row" style="justify-content:center;margin-top:10px"><button class="btn s" type="button" id="sp-zur" ${dran&&B.nIch?"":"disabled"}>Zug zurück</button><button class="btn s" type="button" id="sp-tipp" ${dran?"":"disabled"}>Tipp</button><button class="btn s" type="button" id="sp-dreh">Brett drehen</button></div></div>
+   <div style="display:flex;flex-direction:column;gap:10px;min-width:0"><div class="card">
+    <span class="turn"><i style="background:${w?"#fbfaf6":"#1b1f1c"}"></i>${B.warte?"Stockfish zieht …":"Du bist am Zug, du hast "+(B.farbe==="w"?"Weiß":"Schwarz")}${c.in_check()?" · Schach!":""}</span>
+    ${B.zuege.length?`<div class="moves">${movesText(B.zuege,B.nr0,B.schwarz0)}</div>`:""}</div>
+    <div id="fb">${B.fb}</div></div></div>`;
+  drawBoard($("#board"),c,{flip:(B.farbe==="b")!==B.gedreht,last:B.tipp||B.last,sel:B.sel,marks:{},onTap:spTap});
+  $("#b-x").onclick=spAbbruch;
+  $("#sp-zur").onclick=spZurueck; $("#sp-tipp").onclick=spTipp;
+  $("#sp-dreh").onclick=()=>{B.gedreht=!B.gedreht;render()};
+  const z2=$("#sp-zur2"); if(z2) z2.onclick=spZurueck;
+}
+async function spAbbruch(){
+  if(!B.nIch){B=null;return render()}
+  const me=B, n=B.nIch;
+  B.ende={ok:null,titel:"Beendet nach "+(n===1?"1 Zug":n+" Zügen")+".",text:B.ziel==="spiel"?"Stockfish bewertet die Schlussstellung …":"Die Aufgabe ist noch offen. Probier es bald nochmal."};
+  spZaehl(); render();
+  if(B.ziel!=="spiel"||B.c.game_over()) return;
+  const L=await FAKT.lage(B.c.fen(),1200,1);
+  if(B!==me) return;
+  const t=L&&L.length?lageDu(L[0].cp,B.farbe):"";
+  B.ende.text=t?"Am Ende: "+t+".":""; render();
+}
+function spEndeZeig(v){
+  const e=B.ende, d=B.def, pz=B.urteile.filter(u=>u.art==="Patzer").length, fe=B.urteile.length-pz;
+  const liste=B.urteile.map(u=>`<p class="small"><span class="vl-marke ${u.art==="Fehler"?"fl":"pz"}">${u.art}</span> <span class="nota">${esc(movesText([B.zuege[u.idx]],B.nr0+Math.floor((u.idx+(B.schwarz0?1:0))/2),(u.idx+(B.schwarz0?1:0))%2===1))}</span>, besser war <span class="nota">${esc(de(u.best))}</span></p>`).join("");
+  v.innerHTML=`<section class="card"><span class="eyebrow">${esc(d.titel)}</span><h1>${esc(e.titel)}</h1>${e.text?`<p class="muted">${esc(e.text)}</p>`:""}
+   <div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="stat"><b>${B.nIch}</b><span>deine Züge</span></div><div class="stat"><b>${pz+fe}</b><span>Fehler</span></div><div class="stat"><b>${B.zurueck}</b><span>Zug zurück</span></div></div>
+   ${liste}${B.zuege.length?`<div class="moves">${movesText(B.zuege,B.nr0,B.schwarz0)}</div>`:""}
+   <div class="row"><button class="btn p" type="button" id="b-neu">Nochmal</button><button class="btn" type="button" id="b-zu">Andere Stellung</button>${B.nIch?'<button class="btn" type="button" id="sp-chat">Mit Trainer besprechen</button>':""}</div></section>
+   <div class="board" id="board" role="grid" aria-label="Schlussstellung" style="max-width:320px"></div>`;
+  drawBoard($("#board"),B.c,{flip:B.farbe==="b",last:B.last,onTap:null});
+  $("#b-neu").onclick=()=>spStart(d,B.heute);
+  $("#b-zu").onclick=()=>{B=null;render();window.scrollTo(0,0)};
+  const ch=$("#sp-chat"); if(ch) ch.onclick=()=>{const t="Ich habe gegen Stockfish ("+B.stufe+") ausgespielt: "+d.titel+". Ich hatte "+(B.farbe==="w"?"Weiß":"Schwarz")+". Ergebnis: "+e.titel+(B.urteile.length?" Stockfish hat mir angekreidet: "+B.urteile.map(u=>u.art+" "+de(u.san)+" (besser "+de(u.best)+")").join(", ")+".":"")+" Was soll ich in so einer Stellung besser machen?\n\nStart (FEN): "+(d.fen||(()=>{const x=new Chess();(d.linie||[]).forEach(m=>x.move(m));return x.fen()})())+"\nZüge: "+movesText(B.zuege,B.nr0,B.schwarz0); B=null; send(t)};
+}
+
 /* ---------- Start ---------- */
 if(!D){ $("#view").innerHTML='<div class="fb bad"><b>Keine Daten.</b><p>Tippe oben rechts auf den Knopf, um die Daten vom Server zu laden.</p></div>' }
 else { fertigUebernehmen(); setSync("", "Stand "+fmt(D.stand)); render() }
-initStore().then(()=>{ if(stateDoc&&(!S.motor||S.motor.v!==1)) setTimeout(motorTest,3000) });
+initStore().then(()=>{ if(stateDoc&&(!S.motor||S.motor.v!==1)) setTimeout(motorTest,3000); setTimeout(()=>{partienPflegen();ccHole(false)},2500) });
 setTimeout(()=>syncData(false),600);
 if(!SERVER.token()){ setSync("err","Kein Zugang"); setTimeout(zeigeZugang,400) }
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));

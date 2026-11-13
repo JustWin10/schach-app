@@ -3,6 +3,11 @@
 Trainings-App für Schottisch (Weiß) und Nimzo-Indisch (Schwarz): Tagesplan, 8-Wochen-Plan,
 Fehler-Wiederholung, Partie-Analyse mit Stockfish und ein Trainer-Chat.
 
+Die App holt neue Partien selbst von chess.com, wertet sie im Hintergrund aus und baut aus den eigenen
+Fehlern Aufgaben. Jede Partie bekommt einen Eröffnungs-Check gegen das Eröffnungsbuch (mit Bilanz je
+Eröffnung). Unter „Am Brett“ gibt es drei Übungen: „Erst prüfen, dann ziehen“, „Angreifer und
+Verteidiger zählen“ und das Ausspielen von Endspielen, Repertoire-Stellungen und eigenen Partien gegen Stockfish.
+
 ## So hängt alles zusammen
 
 | Teil | Ordner | Läuft auf |
@@ -16,6 +21,10 @@ Fehler-Wiederholung, Partie-Analyse mit Stockfish und ein Trainer-Chat.
   (Fehler, Limit, Credits leer), automatisch Gemini. Modelle und Reihenfolge stehen in `server/wrangler.toml`.
 - **Claude:** greift über den Connector `https://<server>/mcp/<zugangscode>` auf die App zu, liest den
   Fortschritt und legt Übungen, Partien, Bibliothekseinträge und Nachrichten an.
+- **chess.com:** Der Server holt das öffentliche Partie-Archiv (`/api/chesscom`), der Name steht in den
+  Trainingsdaten unter `spieler.chesscom`. Klappt das nicht, fragt die App chess.com direkt.
+- **Eröffnungsbuch:** Die eingebauten Linien stehen in `web/index.html` (`BUCH`). Claude ergänzt weitere
+  über den Connector im Feld `buch` der Trainingsdaten.
 - **Zugangscode:** nur der SHA-256-Wert steht im Repo (`TOKEN_HASH`). Ohne Code kommt niemand an Daten oder KI.
 
 ## Updates

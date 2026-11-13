@@ -3,6 +3,7 @@
 // - speichert Fortschritt, Chat, Analysen und Trainingsdaten (Durable Object)
 // - leitet KI-Fragen an NVIDIA weiter, bei Problemen automatisch an Gemini
 // - bietet Claude einen Connector (MCP) unter /mcp/<zugangscode>
+// - holt Justins Partien aus dem öffentlichen Archiv von chess.com
 
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
@@ -109,6 +110,34 @@ async function frage(req, env, ctx) {
   return json({ fehler: "Kein KI-Anbieter hat geantwortet", fehlversuche }, 503);
 }
 
+/* ---------- chess.com ----------
+   Ein Monat aus dem öffentlichen Partie-Archiv eines Spielers. Der Server holt ihn, damit die App
+   nicht von den Einstellungen des Browsers abhängt. Zurück kommt nur, was die App braucht. */
+async function chesscom(url) {
+  const name = (url.searchParams.get("name") || "").toLowerCase();
+  const jahr = url.searchParams.get("jahr") || "";
+  const monat = url.searchParams.get("monat") || "";
+  if (!/^[a-z0-9_-]{2,40}$/.test(name) || !/^20\d\d$/.test(jahr) || !/^(0[1-9]|1[0-2])$/.test(monat)) return json({ fehler: "Ungültige Angabe" }, 400);
+  let r;
+  try {
+    r = await fetch("https://api.chess.com/pub/player/" + name + "/games/" + jahr + "/" + monat, {
+      headers: { "User-Agent": "schach-app (privates Trainingswerkzeug)", Accept: "application/json" },
+    });
+  } catch (e) {
+    return json({ fehler: "chess.com ist nicht erreichbar" }, 502);
+  }
+  if (r.status === 404) return json({ games: [] });
+  if (!r.ok) return json({ fehler: "chess.com antwortet mit " + r.status }, 502);
+  let d;
+  try { d = await r.json(); } catch (e) { return json({ fehler: "Antwort von chess.com unlesbar" }, 502); }
+  const seite = (x) => ({ username: (x && x.username) || "", rating: (x && x.rating) || null, result: (x && x.result) || "" });
+  const games = (Array.isArray(d.games) ? d.games : [])
+    .filter((g) => g && g.pgn && (!g.rules || g.rules === "chess"))
+    .slice(-80)
+    .map((g) => ({ url: g.url || "", pgn: g.pgn, end_time: g.end_time || 0, time_class: g.time_class || "", rated: !!g.rated, rules: g.rules || "chess", white: seite(g.white), black: seite(g.black) }));
+  return json({ games });
+}
+
 async function selbsttest(env) {
   const out = { zeit: new Date().toISOString(), speicher: null, anbieter: [] };
   try {
@@ -162,6 +191,7 @@ export default {
       if (!(await tokenOk(env, bearer(req)))) return json({ fehler: "Zugangscode fehlt oder stimmt nicht" }, 401);
       if (p === "/api/pruefen") return json({ ok: true });
       if (p === "/api/frage" && req.method === "POST") return frage(req, env, ctx);
+      if (p === "/api/chesscom" && req.method === "GET") return chesscom(url);
       if (p.startsWith("/api/doc/")) return store(env).fetch(new Request("https://do" + p, req));
       return json({ fehler: "Unbekannte Adresse" }, 404);
     }
@@ -175,7 +205,11 @@ export default {
 const ANLEITUNG = `Connector zu Justins Schach-App. Justin (chess.com ca. 500, Ziel 2000) trainiert mit einem 8-Wochen-Plan: Schottisch mit Weiß, Nimzo-Indisch mit Schwarz.
 Die App zeigt "Trainingsdaten" (Plan, Übungen, Bibliothek, Schwächen, Partien), die du hier lesen und ändern kannst. Den Fortschritt (abgehakte Aufgaben, Wiederholungen, importierte Partien, Fragen, Notizen) schreibt nur die App, du liest ihn.
 Starte mit ueberblick. Jede Änderung an den Trainingsdaten erhöht die Version, die App lädt sie beim nächsten Öffnen.
-Übungen: Züge in englischer SAN (N, B, R, Q, K), deutsche Notation nur in den Texten. Die App prüft neue Übungen am Brett; Fehler stehen danach in ueberblick unter "pruefung".`;
+Übungen: Züge in englischer SAN (N, B, R, Q, K), deutsche Notation nur in den Texten. Die App prüft neue Übungen am Brett; Fehler stehen danach in ueberblick unter "pruefung".
+Die App holt neue Partien selbst von chess.com, wertet sie mit Stockfish aus und baut aus Justins Fehlern eigene Aufgaben (ueberblick: chesscom, fehlerAufgaben.automatisch).
+Eröffnungs-Check: Die App vergleicht jede Partie mit dem Eröffnungsbuch. ueberblick zeigt unter "repertoire", wo Justin abgewichen ist und wozu im Buch noch eine Antwort fehlt.
+Das Buch ergänzt du über daten_speichern im Feld "buch": eine Liste aus {"farbe":"w"|"b","name":"Schottisch · 3…d5","zuege":"e4 e5 Nf3 Nc6 d4 d5 exd5"} (englische SAN ab Grundstellung, die Linie endet mit Justins Zug). Deine Einträge kommen zu den eingebauten Linien dazu.
+Am Brett übt Justin "Erst prüfen, dann ziehen", "Angreifer und Verteidiger zählen" und das Ausspielen gegen Stockfish (ueberblick: brettTraining).`;
 
 const T = (name, title, description, props = {}, required = [], readOnly = false) => ({
   name,
@@ -205,12 +239,12 @@ const UEBUNG = {
 };
 
 const TOOLS = [
-  T("ueberblick", "Überblick", "Aktueller Stand von Justin: Woche, Serie, Plan-Fortschritt, Trefferquote, offene Fehler-Aufgaben, letzte Partien und Fragen, Nachricht, Prüfergebnis neuer Übungen, welche KI zuletzt geantwortet hat.", {}, [], true),
+  T("ueberblick", "Überblick", "Aktueller Stand von Justin: Woche, Serie, Plan-Fortschritt, Trefferquote, offene Fehler-Aufgaben, letzte Partien mit Eröffnungs-Check, Abweichungen vom Repertoire, Übungen am Brett, Abruf von chess.com, Fragen, Nachricht, Prüfergebnis neuer Übungen, welche KI zuletzt geantwortet hat.", {}, [], true),
   T("fortschritt_lesen", "Fortschritt lesen", "Rohdaten des Fortschritts aus der App. Ohne teil: alles außer den PGNs der Partien.", {
-    teil: { type: "string", enum: ["plan", "days", "steps", "srs", "fertig", "custom", "notes", "games", "fragen", "pruefung", "motor", "seen"], description: "Nur diesen Teil lesen" },
+    teil: { type: "string", enum: ["plan", "days", "steps", "srs", "fertig", "custom", "notes", "games", "fragen", "pruefung", "motor", "seen", "drill", "rep", "cc", "auto"], description: "Nur diesen Teil lesen. drill = Übungen am Brett, rep = Eröffnungs-Check je Partie, cc = Abruf von chess.com, auto = Stand der Hintergrund-Auswertung" },
   }, [], true),
   T("daten_lesen", "Trainingsdaten lesen", "Die Trainingsdaten der App (Plan, Repertoire, Bibliothek, Schwächen, Übungen, Partien, Nachricht).", {
-    teil: { type: "string", enum: ["spieler", "planStart", "repertoire", "wochen", "artifacts", "schwaechen", "uebungen", "partien", "lichess", "nachricht"] },
+    teil: { type: "string", enum: ["spieler", "planStart", "repertoire", "wochen", "artifacts", "schwaechen", "uebungen", "partien", "lichess", "nachricht", "buch"] },
   }, [], true),
   T("daten_speichern", "Trainingsdaten ersetzen", "Ersetzt die kompletten Trainingsdaten. Vorher mit daten_lesen holen und version_vorher angeben, damit nichts überschrieben wird. version und stand setzt der Server.", {
     daten: { type: "object", description: "Komplettes Datenobjekt" },
@@ -476,6 +510,27 @@ export class Store {
     const games = [...(D.partien || []).map((g) => ({ ...g, herkunft: "Daten" })), ...(S.games || []).map((g) => ({ ...g, herkunft: "importiert" }))]
       .sort((a, b) => String(b.datum || "").localeCompare(String(a.datum || "")));
     const log = (await this.s.get("log")) || [];
+    // Eröffnungs-Check, den die App je Partie gespeichert hat
+    const rep = S.rep || {};
+    const zugText = (zuege) => String(zuege || "").split(" ").filter(Boolean).map((m, i) => (i % 2 === 0 ? i / 2 + 1 + "." : "") + m).join(" ");
+    const repText = (r) => !r ? undefined
+      : r.a === "ich" ? "abgewichen: " + zugText(r.v) + " statt " + (r.b || []).join("/")
+      : r.a === "gegner" ? (r.k ? r.k + " Buchzüge, dann wich der Gegner ab: " : "nicht im Buch: ") + zugText(r.v)
+      : r.a === "ende" ? r.k + " Buchzüge, bis zum Ende des Buchs" + (r.n ? " (" + r.n + ")" : "")
+      : "nicht im Buch";
+    const zaehle = (art) => {
+      const m = {};
+      for (const g of games) {
+        const r = rep[g.id];
+        if (!r || r.a !== art) continue;
+        const k = zugText(r.v) + (art === "ich" ? " statt " + (r.b || []).join("/") : "");
+        m[k] = m[k] || { stelle: k, anzahl: 0, zuletzt: g.datum };
+        m[k].anzahl++;
+      }
+      return Object.values(m).sort((a, b) => b.anzahl - a.anzahl).slice(0, 8);
+    };
+    const drill = S.drill || {};
+    const custom = S.custom || [];
     return {
       heute: t,
       woche: {
@@ -497,10 +552,19 @@ export class Store {
         offen: offen.length,
         abgeschlossen: items.length - offen.length,
         faellig: offen.filter((it) => !srs[it.id] || srs[it.id].due <= t).length,
-        eigeneAusPartien: (S.custom || []).length,
+        eigeneAusPartien: custom.length,
+        automatisch: custom.filter((c) => c.auto).length,
+        automatischOffen: custom.filter((c) => c.auto && !fertig[c.id]).length,
       },
       schwaechen: (D.schwaechen || []).map((s) => ({ id: s.id, titel: s.titel, anzahl: s.anzahl })),
-      letztePartien: games.slice(0, 8).map((g) => ({ id: g.id, datum: g.datum, gegner: g.gegner, farbe: g.farbe, ergebnis: g.ergebnis, eroeffnung: g.eroeffnung, kurz: g.kurz, herkunft: g.herkunft, analyse: (S.anaIds || []).includes(g.id) })),
+      letztePartien: games.slice(0, 8).map((g) => ({ id: g.id, datum: g.datum, gegner: g.gegner, farbe: g.farbe, ergebnis: g.ergebnis, eroeffnung: g.eroeffnung, kurz: g.kurz, herkunft: g.auto ? "chess.com" : g.herkunft, analyse: (S.anaIds || []).includes(g.id), repertoire: repText(rep[g.id]) })),
+      repertoire: { abgewichen: zaehle("ich"), antwortFehltImBuch: zaehle("gegner"), eigeneBuchLinien: Array.isArray(D.buch) ? D.buch.length : 0 },
+      brettTraining: {
+        erstPruefen: drill.pruef ? { stellungen: drill.pruef.n, schachsGefunden: drill.pruef.sG + "/" + drill.pruef.sA, schlagzuegeGefunden: drill.pruef.cG + "/" + drill.pruef.cA, falschGetippt: drill.pruef.f, guteZuege: drill.pruef.z, zuletzt: drill.pruef.d } : null,
+        zaehlen: drill.zaehl ? { stellungen: drill.zaehl.n, allesRichtig: drill.zaehl.r, angreiferRichtig: drill.zaehl.a, verteidigerRichtig: drill.zaehl.v, urteilRichtig: drill.zaehl.u, zuletzt: drill.zaehl.d } : null,
+        ausspielen: drill.spiel ? { gespielt: drill.spiel.n, geschafft: drill.spiel.g, zuletzt: drill.spiel.d, jeStellung: drill.spiel.je } : null,
+      },
+      chesscom: S.cc ? { automatisch: !S.cc.aus, zuletztGeprueft: S.cc.t ? new Date(S.cc.t).toISOString() : null, zuletztNeu: S.cc.zuletztNeu || 0, fehler: S.cc.fehler || null, auswertungOffen: (S.games || []).filter((g) => !(S.anaIds || []).includes(g.id)).length } : null,
       letzteFragen: (S.fragen || []).slice(-8),
       eigeneNotizen: (S.notes || []).slice(-10),
       nachricht: D.nachricht || null,
