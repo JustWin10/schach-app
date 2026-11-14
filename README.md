@@ -17,6 +17,12 @@ Verteidiger zählen“ und das Ausspielen von Endspielen, Repertoire-Stellungen 
 | Android-App | `android/` | Handy, zeigt die App vom Server |
 
 - **Speicher:** Fortschritt, Chat, Analysen und Trainingsdaten liegen auf dem Server, nicht nur auf dem Handy.
+- **Mehrere Geräte:** Handy und Tablet nutzen denselben Zugangscode und teilen sich den Fortschritt. Jedes
+  Speichern nennt die Version, auf der es aufbaut (`X-Rev`). Hat das andere Gerät inzwischen gespeichert,
+  führt die App beide Stände zusammen, statt einen zu überschreiben. Den Code für ein weiteres Gerät zeigt
+  die App unter „Heute“ → „Weiteres Gerät verbinden“.
+- **Tablet:** Ab 700 px Breite gibt es eine größere Schrift und ein großes Brett, im Querformat steht die
+  Navigation links und der Text neben dem Brett.
 - **Trainer-Fragen:** gehen an ein kostenloses KI-Modell. Zuerst NVIDIA, und wenn das nicht klappt
   (Fehler, Limit, Credits leer), automatisch Gemini. Modelle und Reihenfolge stehen in `server/wrangler.toml`.
 - **Claude:** greift über den Connector `https://<server>/mcp/<zugangscode>` auf die App zu, liest den

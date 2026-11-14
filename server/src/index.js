@@ -389,9 +389,14 @@ export class Store {
       const name = decodeURIComponent(p.slice("/api/doc/".length));
       if (!/^[A-Za-z0-9][A-Za-z0-9_.~-]{0,100}$/.test(name)) return json({ fehler: "Ungültiger Name" }, 400);
       const key = "doc:" + name;
+      /* X-Rev: die Version, die das Gerät kennt. So merken zwei Geräte (Handy und Tablet), wenn das
+         andere inzwischen gespeichert hat, und überschreiben sich nichts. Ohne X-Rev gilt das alte Verhalten. */
+      const kennt = req.headers.get("X-Rev");
+      const hatRev = kennt !== null && /^\d+$/.test(kennt);
       if (req.method === "GET") {
         const d = await this.s.get(key);
         if (!d) return json({ fehler: "Nicht gefunden" }, 404);
+        if (hatRev && Number(kennt) === d.rev) return json({ rev: d.rev, gleich: true });
         return new Response('{"rev":' + d.rev + ',"updated":' + JSON.stringify(d.updated) + ',"data":' + d.text + "}", {
           headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
         });
@@ -401,6 +406,12 @@ export class Store {
         if (text.length > 1800000) return json({ fehler: "Zu groß" }, 413);
         try { JSON.parse(text); } catch (e) { return json({ fehler: "Kein gültiges JSON" }, 400); }
         const alt = await this.s.get(key);
+        if (hatRev && Number(kennt) !== (alt ? alt.rev : 0)) {
+          /* inzwischen hat ein anderes Gerät gespeichert: nichts überschreiben, den aktuellen Stand zurückgeben */
+          return new Response('{"konflikt":true,"rev":' + (alt ? alt.rev : 0) + ',"data":' + (alt ? alt.text : "null") + "}", {
+            status: 409, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+          });
+        }
         const d = { text, rev: (alt ? alt.rev : 0) + 1, updated: new Date().toISOString() };
         await this.s.put(key, d);
         return json({ rev: d.rev });

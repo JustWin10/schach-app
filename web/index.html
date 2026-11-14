@@ -165,7 +165,7 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;he
 .mv{font:inherit;border:0;background:transparent;color:var(--fg);padding:1px 4px;border-radius:4px;cursor:pointer}
 .mv.on{background:var(--accent);color:var(--accent-fg)}
 .empty{color:var(--muted);font-size:.95rem;padding:6px 0}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 14px);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:.9rem;z-index:30;max-width:calc(100% - 32px)}
+.toast{position:fixed;left:calc(50% + var(--rail,0px)/2);transform:translateX(-50%);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 14px);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:.9rem;z-index:30;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
 /* Frage an den Trainer */
 .fr-spalte{display:flex;flex-direction:column;gap:12px;min-width:0}
@@ -261,6 +261,8 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;he
 .mv.on::after{color:inherit}
 /* Zugang zum Server */
 .zg{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
+.zg-mehr{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.zg-code{font:600 1.05rem/1.7 var(--f-mono);letter-spacing:.04em;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
 .zg-box{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:18px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 /* Am Brett, Eröffnungs-Check, Bilanz */
 .sq.miss::before{content:"";position:absolute;inset:0;background:rgba(232,148,15,.62)}
@@ -288,6 +290,46 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:16px;he
 .nachricht{border-color:var(--accent)}
 .nachricht p+p,.nachricht ul{margin-top:6px}
 .nachricht ul{margin-bottom:0;padding-left:20px}
+/* ---------- Tablet ----------
+   Ab 700 px Breite (und genug Höhe, damit ein quer gehaltenes Handy nicht mitzählt):
+   größere Schrift, breitere Spalte, großes Brett.
+   Hochformat: Brett oben, Text darunter. Querformat ab 960 px: Navigation links als Leiste,
+   Brett links so groß wie die Höhe es hergibt, Text rechts daneben. */
+:root{--rail:0px}
+@media (min-width:700px) and (min-height:600px){
+  :root{--nav-h:68px}
+  html{font-size:17px}
+  body{font-size:1rem}
+  .wrap{max-width:880px;gap:22px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+  nav.tabs .in{max-width:880px}
+  nav.tabs button{font-size:.76rem;gap:4px}
+  nav.tabs button svg{width:25px;height:25px}
+  .steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .board,.vl{max-width:580px}
+  .zg-box{max-width:480px}
+  .msg{max-width:78%}
+  .bt-liste{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+}
+@media (min-width:700px) and (min-height:600px) and (orientation:portrait){
+  .trainer-box{grid-template-columns:minmax(0,1fr);gap:18px}
+}
+@media (min-width:960px) and (min-height:600px) and (orientation:landscape){
+  :root{--rail:100px;--nav-h:0px;--brett:clamp(340px,calc(100vh - 300px),660px)}
+  body{padding-left:calc(var(--rail) + env(safe-area-inset-left,0px))}
+  nav.tabs{top:0;right:auto;width:calc(var(--rail) + env(safe-area-inset-left,0px));border-top:0;border-right:1px solid var(--line);
+    padding:0 0 0 env(safe-area-inset-left,0px);display:flex;flex-direction:column;justify-content:center}
+  nav.tabs .in{max-width:none;width:100%;margin:0;height:auto;grid-template-columns:minmax(0,1fr);grid-auto-rows:86px}
+  nav.tabs button{margin:5px 10px;border-radius:14px}
+  nav.tabs button[aria-current="page"]{background:var(--accent-soft)}
+  .wrap{max-width:1240px;padding-top:22px;padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px))}
+  #view{width:100%;max-width:920px;margin:0 auto}
+  header.top{width:100%;max-width:920px;margin:0 auto}
+  .wrap:has(.trainer-box) #view,.wrap:has(.trainer-box) header.top{max-width:none}
+  .trainer-box{grid-template-columns:minmax(0,var(--brett)) minmax(0,1fr);gap:24px}
+  .trainer-box .board,.trainer-box .vl{max-width:none}
+  /* das Brett bleibt stehen, während rechts der Text rollt */
+  .trainer-box>:first-child{position:sticky;top:16px;align-self:start}
+}
 </style>
 
 <div class="wrap">
@@ -332,9 +374,9 @@ const SERVER=(()=>{
   const token=()=>{try{return localStorage.getItem(KEY)||""}catch(e){return ""}};
   const setToken=t=>{try{t?localStorage.setItem(KEY,t):localStorage.removeItem(KEY)}catch(e){}};
   const fehler=(code,extra)=>Object.assign({code},extra||{});
-  async function req(method,path,body,signal){
+  async function req(method,path,body,signal,extra){
     let r;
-    const headers={"Authorization":"Bearer "+token()}; if(body!==undefined) headers["Content-Type"]="application/json";
+    const headers=Object.assign({"Authorization":"Bearer "+token()},extra||{}); if(body!==undefined) headers["Content-Type"]="application/json";
     try{ r=await fetch(path,{method,headers,body:body===undefined?undefined:(typeof body==="string"?body:JSON.stringify(body)),signal,cache:"no-store"}) }
     catch(e){ if(e&&e.name==="AbortError") throw fehler("cancelled"); throw fehler("offline") }
     if(r.status===401) throw fehler("not_granted");
@@ -345,6 +387,16 @@ const SERVER=(()=>{
   async function get(n){const r=await req("GET","/api/doc/"+name(n));if(r.status===404)return null;if(!r.ok)throw fehler("server");return (await r.json()).data}
   async function put(n,data){const r=await req("PUT","/api/doc/"+name(n),JSON.stringify(data));if(!r.ok)throw fehler("server",{status:r.status})}
   async function del(n){const r=await req("DELETE","/api/doc/"+name(n));if(!r.ok&&r.status!==404)throw fehler("server")}
+  /* Mit Versionsnummer, damit sich zwei Geräte nichts überschreiben.
+     getRev: {rev,data} oder {rev,gleich:true}, wenn sich seit rev nichts getan hat. null, wenn es das Dokument nicht gibt.
+     putRev: speichert nur, wenn auf dem Server noch rev liegt. Sonst Fehler "konflikt" mit dem Stand vom Server. */
+  async function getRev(n,rev){const r=await req("GET","/api/doc/"+name(n),undefined,undefined,rev!=null?{"X-Rev":String(rev)}:null);if(r.status===404)return null;if(!r.ok)throw fehler("server");return r.json()}
+  async function putRev(n,data,rev){
+    const r=await req("PUT","/api/doc/"+name(n),JSON.stringify(data),undefined,rev!=null?{"X-Rev":String(rev)}:null);
+    if(r.status===409){let j={};try{j=await r.json()}catch(e){} throw fehler("konflikt",{rev:j.rev||0,data:j.data==null?null:j.data})}
+    if(!r.ok)throw fehler("server",{status:r.status});
+    return r.json();
+  }
   const doc=p=>({get:async()=>{const d=await get(p);return {exists:d!=null,data:()=>d}},set:d=>put(p,d),delete:()=>del(p)});
   async function pruefe(t){const r=await fetch("/api/pruefen",{headers:{"Authorization":"Bearer "+t},cache:"no-store"});return r.ok}
   /* Gesprächsverlauf so formen, dass jedes Modell ihn annimmt: abwechselnd user/assistant, Start mit user */
@@ -387,7 +439,7 @@ const SERVER=(()=>{
     if(a<0||b<=a) throw fehler("invalid_json");
     try{return JSON.parse(s.slice(a,b+1))}catch(e){throw fehler("invalid_json")}
   };
-  return {token,setToken,pruefe,get,put,del,doc,sample,roh:req};
+  return {token,setToken,pruefe,get,put,del,doc,getRev,putRev,sample,roh:req};
 })();
 
 function zeigeZugang(){
@@ -398,17 +450,26 @@ function zeigeZugang(){
    <p class="small muted">Den Zugangscode hat dir Claude im Chat gegeben. Einmal eingeben reicht, danach merkt sich die App ihn.</p>
    <input type="text" id="zg-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Zugangscode" aria-label="Zugangscode">
    <p class="small" id="zg-msg" hidden></p>
-   <div class="row"><button class="btn p" type="button" id="zg-ok">Verbinden</button><button class="btn" type="button" id="zg-zu">${hat?"Schließen":"Später"}</button>${hat?'<button class="btn" type="button" id="zg-weg">Code entfernen</button>':""}</div></div>`;
+   <div class="row"><button class="btn p" type="button" id="zg-ok">Verbinden</button><button class="btn" type="button" id="zg-zu">${hat?"Schließen":"Später"}</button>${hat?'<button class="btn" type="button" id="zg-weg">Code entfernen</button>':""}</div>
+   ${hat?`<div class="zg-mehr"><b>Weiteres Gerät verbinden</b><p class="small muted">Tablet oder zweites Handy: dort die App installieren und diesen Code eingeben. Beide Geräte teilen sich dann denselben Fortschritt.</p>
+    <div class="row"><button class="btn s" type="button" id="zg-zeig">Code anzeigen</button><button class="btn s" type="button" id="zg-kop" hidden>Kopieren</button></div><div class="zg-code" id="zg-code" hidden></div></div>`:""}</div>`;
   document.body.appendChild(el);
   const inp=$("#zg-in"), msg=$("#zg-msg"), zu=()=>el.remove();
   setTimeout(()=>{try{inp.focus()}catch(e){}},60);
   $("#zg-zu").onclick=zu;
-  const weg=$("#zg-weg"); if(weg) weg.onclick=()=>{SERVER.setToken("");zu();setSync("err","Kein Zugang");toast("Code entfernt")};
+  const weg=$("#zg-weg"); if(weg) weg.onclick=()=>{SERVER.setToken("");basisWeg();zu();setSync("err","Kein Zugang");toast("Code entfernt")};
+  const zeig=$("#zg-zeig"); if(zeig) zeig.onclick=()=>{
+    const c=$("#zg-code"), auf=c.hidden; c.hidden=!auf; $("#zg-kop").hidden=!auf; zeig.textContent=auf?"Code verbergen":"Code anzeigen";
+    /* in Vierergruppen, damit er sich leichter abtippen lässt. Leerzeichen sind beim Eingeben egal */
+    if(auf) c.textContent=(SERVER.token().match(/.{1,4}/g)||[]).join(" ");
+  };
+  const kop=$("#zg-kop"); if(kop) kop.onclick=async()=>{ try{await navigator.clipboard.writeText(SERVER.token());toast("Code kopiert")}catch(e){toast("Kopieren geht hier nicht. Tipp den Code ab.")} };
   $("#zg-ok").onclick=async()=>{
     const code=inp.value.replace(/\s+/g,""); if(!code) return;
     msg.hidden=false; msg.textContent="Prüfe …";
     let ok=false; try{ok=await SERVER.pruefe(code)}catch(e){msg.textContent="Keine Verbindung zum Server. Prüf dein Internet.";return}
     if(!ok){msg.textContent="Der Code stimmt nicht. Achte auf Groß- und Kleinschreibung.";return}
+    if(code!==SERVER.token()){basisWeg();stateGeladen=false}
     SERVER.setToken(code); zu(); toast("Verbunden"); await initStore(); syncData(false); setTimeout(()=>{partienPflegen();ccHole(false)},2500);
   };
   inp.onkeydown=e=>{if(e.key==="Enter")$("#zg-ok").click()};
@@ -423,35 +484,216 @@ const BLANK = {plan:{}, days:[], steps:{}, srs:{}, fertig:{}, custom:[], notes:[
 let S = Object.assign({}, BLANK, lsGet("schach-state", {}));
 let C = lsGet("schach-chat", {turns:[]});
 let saveErr=0, stateDoc=null, chatDoc=null, saving={}, pendingSave={}, anaDb=null, anaUid="", stateGeladen=false;
+
+/* ---------- Abgleich zwischen Geräten ----------
+   Handy und Tablet teilen sich denselben Fortschritt auf dem Server. Jedes Speichern nennt die Version,
+   auf der es aufbaut. Hat das andere Gerät inzwischen gespeichert, lehnt der Server ab und schickt seinen
+   Stand. Dann werden beide Stände zusammengeführt (verschmelze) und noch einmal gespeichert. So geht auf
+   keinem Gerät etwas verloren. "basis" ist der Stand, den dieses Gerät zuletzt mit dem Server geteilt hat. */
+const REV={state:{rev:null,basis:null},chat:{rev:null,basis:null}};
+const istObj=x=>!!x&&typeof x==="object"&&!Array.isArray(x);
+const kopie=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
+const lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};
+/* tiefer Vergleich, die Reihenfolge der Schlüssel ist egal */
+function gl(a,b){
+  if(a===b) return true;
+  if(a==null||b==null||typeof a!=="object"||typeof b!=="object") return false;
+  const aa=Array.isArray(a); if(aa!==Array.isArray(b)) return false;
+  if(aa){ if(a.length!==b.length) return false; for(let i=0;i<a.length;i++) if(!gl(a[i],b[i])) return false; return true }
+  const ka=Object.keys(a); if(ka.length!==Object.keys(b).length) return false;
+  for(const k of ka) if(!Object.prototype.hasOwnProperty.call(b,k)||!gl(a[k],b[k])) return false;
+  return true;
+}
+const stabil=x=>JSON.stringify(x,(k,v)=>istObj(v)?Object.keys(v).sort().reduce((o,k)=>(o[k]=v[k],o),{}):v);
+const mKey=x=>istObj(x)&&x.id!=null?"i:"+x.id:"j:"+stabil(x);
+/* b = gemeinsamer Ausgangsstand, l = dieses Gerät, r = Server. Was nur eine Seite geändert hat, gilt.
+   Haben beide dasselbe Feld verschieden geändert, gewinnt dieses Gerät. */
+function verschmelze(b,l,r){
+  if(gl(l,r)) return l;
+  if(gl(l,b)) return r;
+  if(gl(r,b)) return l;
+  if(Array.isArray(l)&&Array.isArray(r)) return verschmelzeListe(Array.isArray(b)?b:[],l,r);
+  if(istObj(l)&&istObj(r)){
+    const bo=istObj(b)?b:{}, out={};
+    for(const k of new Set([...Object.keys(l),...Object.keys(r)])){
+      const inL=k in l, inR=k in r, inB=k in bo;
+      if(inL&&inR) out[k]=verschmelze(bo[k],l[k],r[k]);
+      else if(inL){ if(!(inB&&gl(l[k],bo[k]))) out[k]=l[k] }   /* drüben gelöscht, hier unverändert: bleibt gelöscht */
+      else if(!(inB&&gl(r[k],bo[k]))) out[k]=r[k];              /* hier gelöscht, drüben unverändert: bleibt gelöscht */
+    }
+    return out;
+  }
+  return l;
+}
+function verschmelzeListe(b,l,r){
+  const kb=b.map(mKey), kl=l.map(mKey), kr=r.map(mKey), eind=k=>new Set(k).size===k.length;
+  if(!eind(kl)||!eind(kr)||!eind(kb)){
+    /* Listen mit Wiederholungen (der Chat): nur zusammenführen, wenn beide Seiten bloß angehängt haben */
+    const vorn=x=>x.length>=b.length&&b.every((e,i)=>gl(e,x[i]));
+    return vorn(l)&&vorn(r)?[...b,...r.slice(b.length),...l.slice(b.length)]:l;
+  }
+  const B=new Map(b.map((x,i)=>[kb[i],x])), L=new Set(kl), R=new Map(r.map((x,i)=>[kr[i],x])), out=[];
+  let alt=0;   /* bis hierhin reicht in out, was es schon im Ausgangsstand gab */
+  l.forEach((x,i)=>{const k=kl[i];
+    if(R.has(k)) out.push(verschmelze(B.get(k),x,R.get(k)));
+    else if(!B.has(k)||!gl(x,B.get(k))) out.push(x);            /* neu auf diesem Gerät, oder drüben gelöscht, aber hier geändert */
+    else return;
+    if(B.has(k)) alt=out.length;
+  });
+  const erstB=kr.findIndex(k=>B.has(k)), vorne=[], hinten=[];
+  r.forEach((x,i)=>{const k=kr[i];
+    if(L.has(k)||(B.has(k)&&gl(x,B.get(k)))) return;            /* schon drin, oder hier gelöscht und drüben unverändert */
+    (erstB>=0&&i<erstB?vorne:hinten).push(x);
+  });
+  /* Neues vom Server kommt vor das Neue von diesem Gerät: es wurde früher gespeichert */
+  const erg=[...vorne,...out.slice(0,alt),...hinten,...out.slice(alt)];
+  const sortiert=a=>a.every((x,i)=>typeof x==="string"&&(i===0||a[i-1]<=x));
+  if(l.length&&r.length&&sortiert(l)&&sortiert(r)) erg.sort();
+  return erg;
+}
+/* ziel bekommt den Inhalt von quelle, ohne dass ziel und seine Teile neue Objekte werden.
+   So bleiben Verweise gültig, die eine laufende Übung noch auf Teile des Fortschritts hält. */
+function angleichen(z,q){
+  if(Array.isArray(z)){
+    const alt=new Map(); z.forEach(x=>{if(istObj(x)&&x.id!=null) alt.set("i:"+x.id,x)});
+    const neu=q.map(x=>{const a=istObj(x)&&x.id!=null?alt.get("i:"+x.id):null; return a?angleichen(a,x):x});
+    z.length=0; for(const x of neu) z.push(x); return z;
+  }
+  for(const k of Object.keys(z)) if(!(k in q)) delete z[k];
+  for(const k of Object.keys(q)){
+    const a=z[k], b=q[k];
+    if((istObj(a)&&istObj(b))||(Array.isArray(a)&&Array.isArray(b))) angleichen(a,b); else z[k]=b;
+  }
+  return z;
+}
+/* Dieselbe Partie, auf zwei Geräten gleichzeitig geholt, hat zwei Kennungen. Eine bleibt, die andere geht mit ihrem Anhang. */
+function entdoppeln(){
+  const gs=S.games||[]; if(gs.length<2) return false;
+  const gruppen=new Map(); for(const g of gs){const k=zugKey(g.pgn); if(!gruppen.has(k)) gruppen.set(k,[]); gruppen.get(k).push(g)}
+  const weg=new Map(), ana=new Set(S.anaIds||[]), aufg=(S.auto&&S.auto.aufg)||{};
+  for(const liste of gruppen.values()){
+    if(liste.length<2) continue;
+    const rang=g=>(ana.has(g.id)?0:aufg[g.id]!=null?1:2);
+    const bleibt=liste.slice().sort((a,b)=>rang(a)-rang(b)||(a.id<b.id?-1:1))[0];
+    for(const g of liste) if(g!==bleibt) weg.set(g.id,bleibt.id);
+  }
+  if(!weg.size) return false;
+  S.games=gs.filter(g=>!weg.has(g.id));
+  S.anaIds=(S.anaIds||[]).filter(id=>!weg.has(id));
+  for(const o of [S.rep,S.auto&&S.auto.aufg,S.auto&&S.auto.fehl]) if(o) for(const id of weg.keys()) delete o[id];
+  S.custom=(S.custom||[]).filter(c=>{
+    if(!weg.has(c.gameId)) return true;
+    if(c.auto){delete S.srs[c.id];delete S.fertig[c.id];return false}   /* die Aufgaben der Partie, die bleibt, gibt es schon oder sie entstehen neu */
+    c.gameId=weg.get(c.gameId); return true;
+  });
+  return true;
+}
+const basisMerken=w=>lsSet("schach-basis-"+w,{rev:REV[w].rev,d:REV[w].basis});
+const basisWeg=()=>["state","chat"].forEach(w=>{lsDel("schach-basis-"+w);lsDel("schach-offen-"+w)});
+/* Stand vom Server in den Stand dieses Geräts einarbeiten. anders: hier hat sich etwas getan. offen: es gibt noch etwas hochzuladen. */
+function uebernimm(which,rev,fern){
+  const R=REV[which], lokal=which==="state"?S:C;
+  const neu=Object.assign(which==="state"?kopie(BLANK):{turns:[]},kopie(gl(lokal,R.basis)?fern:verschmelze(R.basis,lokal,fern)));
+  const anders=!gl(lokal,neu);
+  angleichen(lokal,neu);
+  R.rev=rev; R.basis=kopie(fern); basisMerken(which);
+  if(which==="state") entdoppeln();
+  lsSet(which==="state"?"schach-state":"schach-chat",lokal);
+  return {anders,offen:!gl(lokal,R.basis)};
+}
+/* Speichern und Abgleichen laufen nie gleichzeitig */
+let kette=Promise.resolve();
+const gesperrt=fn=>{const p=kette.then(fn,fn); kette=p.catch(()=>{}); return p};
+async function hochladen(which){
+  const R=REV[which];
+  for(let i=0;i<5;i++){
+    const jetzt=kopie(which==="state"?S:C);
+    if(R.rev!=null&&gl(jetzt,R.basis)){lsDel("schach-offen-"+which);return}
+    try{
+      const r=await SERVER.putRev(which,jetzt,R.rev);
+      R.rev=r.rev; R.basis=jetzt; basisMerken(which);
+      if(gl(which==="state"?S:C,jetzt)) lsDel("schach-offen-"+which);
+      return;
+    }catch(e){
+      if(!(e&&e.code==="konflikt")) throw e;
+      if(e.data==null){R.rev=e.rev||0;R.basis=null;continue}
+      if(uebernimm(which,e.rev,e.data).anders) nachAbgleich();
+    }
+  }
+  throw {code:"konflikt"};
+}
+async function sichere(which){
+  clearTimeout(pendingSave[which]); pendingSave[which]=0;
+  if(saving[which]){pendingSave[which]=setTimeout(()=>sichere(which),600);return}
+  saving[which]=true;
+  try{ await gesperrt(()=>hochladen(which)); saveErr=0 }
+  catch(e){ console.warn("save",e); if(!saveErr++) toast("Speichern auf dem Server fehlgeschlagen ("+((e&&e.code)||"Fehler")+"). Auf diesem Gerät ist es trotzdem gemerkt.") }
+  saving[which]=false;
+}
 function persist(which){
   if(which==="state") lsSet("schach-state",S); else lsSet("schach-chat",C);
+  lsSet("schach-offen-"+which,1);
   const doc = which==="state"?stateDoc:chatDoc; if(!doc) return;
   clearTimeout(pendingSave[which]);
-  pendingSave[which]=setTimeout(async function run(){
-    if(saving[which]){pendingSave[which]=setTimeout(run,600);return}
-    saving[which]=true;
-    try{ await doc.set(JSON.parse(JSON.stringify(which==="state"?S:C))); saveErr=0 }catch(e){ console.warn("save",e); if(!saveErr++) toast("Speichern auf dem Server fehlgeschlagen ("+((e&&e.code)||"Fehler")+"). Auf diesem Gerät ist es trotzdem gemerkt.") }
-    saving[which]=false;
-  },700);
+  pendingSave[which]=setTimeout(()=>sichere(which),700);
 }
 const save = () => persist("state");
 const saveChat = () => persist("chat");
-
-async function initStore(){
+/* nach einem Abgleich, der hier etwas geändert hat: neu zeichnen, aber niemandem die Eingabe wegnehmen */
+function nachAbgleich(){
+  try{partienPflegen()}catch(e){}
+  const a=document.activeElement, tippt=a&&/^(TEXTAREA|SELECT)$/.test(a.tagName)||(a&&a.tagName==="INPUT"&&a.type!=="checkbox");
+  if(!tippt&&!B&&!review&&!document.getElementById("zugang")) render();
+  toast("Stand vom anderen Gerät übernommen");
+}
+/* Hat das andere Gerät gespeichert? Dann dessen Stand holen und einarbeiten. */
+let abglZeit=0, ladeLaeuft=false;
+async function abgleich(sofort){
   if(!SERVER.token()) return;
+  if(!stateGeladen){ if(!ladeLaeuft&&!document.getElementById("zugang")) await initStore(); return }   /* der Start war ohne Netz: Laden nachholen */
+  if(!sofort&&Date.now()-abglZeit<8000) return;
+  abglZeit=Date.now();
+  try{
+    await gesperrt(async()=>{
+      let neu=false;
+      const a=await SERVER.getRev("state",REV.state.rev);
+      if(a&&!a.gleich){const u=uebernimm("state",a.rev,a.data); neu=u.anders; if(u.offen) persist("state")}
+      if(!busy){
+        const b=await SERVER.getRev("chat",REV.chat.rev);
+        if(b&&!b.gleich){const u=uebernimm("chat",b.rev,b.data); neu=neu||u.anders; if(u.offen) persist("chat")}
+      }
+      if(neu) nachAbgleich();
+    });
+  }catch(e){ if(e&&e.code==="not_granted") zeigeZugang() }
+}
+/* Beim Start: Stand vom Server laden. Was beim letzten Mal nicht mehr hochkam (kein Netz, App zu früh zu), wird eingearbeitet. */
+function ladeDoc(which,fern){
+  const R=REV[which], lokal=which==="state"?S:C;
+  if(!fern){ R.rev=0; R.basis=null; return false }
+  const alt=lsGet("schach-basis-"+which,null), offen=lsGet("schach-offen-"+which,0);
+  const neu=Object.assign(which==="state"?kopie(BLANK):{turns:[]},kopie(offen&&alt&&alt.d&&!gl(lokal,alt.d)?verschmelze(alt.d,lokal,fern.data):fern.data));
+  if(which==="state") S=neu; else C=neu;
+  R.rev=fern.rev; R.basis=kopie(fern.data); basisMerken(which);
+  if(which==="state") entdoppeln();
+  lsSet(which==="state"?"schach-state":"schach-chat",neu);
+  if(gl(neu,R.basis)) lsDel("schach-offen-"+which); else persist(which);
+  return true;
+}
+async function initStore(){
+  if(!SERVER.token()||ladeLaeuft) return;
+  ladeLaeuft=true;
   try{
     const db = SERVER, id = "ich";
     anaDb = db; anaUid = id;
+    const [a,b] = await Promise.all([SERVER.getRev("state"),SERVER.getRev("chat")]);
     stateDoc = db.doc("data/users/"+id+"/state");
     chatDoc = db.doc("data/users/"+id+"/chat");
-    const [a,b] = await Promise.all([stateDoc.get(),chatDoc.get()]);
-    /* data() ist eingefroren: erst kopieren, sonst laufen spätere Änderungen ins Leere */
-    const copy = x => JSON.parse(JSON.stringify(x));
-    if(a.exists){ S = Object.assign({}, BLANK, copy(a.data())); lsSet("schach-state",S) } else if(Object.keys(S.plan).length||S.days.length) save();
-    if(b.exists){ C = Object.assign({turns:[]}, copy(b.data())); lsSet("schach-chat",C) }
+    if(!ladeDoc("state",a)&&(Object.keys(S.plan).length||S.days.length)) save();
+    ladeDoc("chat",b);
     stateGeladen=true; fertigUebernehmen(); pruefeUebungen();
     render();
   }catch(e){ console.warn("store",e); if(e&&e.code==="not_granted") zeigeZugang() }
+  ladeLaeuft=false;
 }
 
 /* ---------- Trainingsdaten vom Server holen ---------- */
@@ -479,7 +721,14 @@ async function syncData(manual){
 }
 $("#sync").onclick=()=>SERVER.token()?syncData(true):zeigeZugang();
 $("#sync").oncontextmenu=e=>{e.preventDefault();zeigeZugang()};
-document.addEventListener("visibilitychange",()=>{ if(!document.hidden && Date.now()-lastSync>5*60*1000){ syncData(false); if(!review&&!B&&!saving.state&&!AUTO.laeuft&&!CC.laeuft) initStore().then(()=>ccHole(false)); else ccHole(false) } });
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){ for(const w of ["state","chat"]) if(pendingSave[w]) sichere(w); return }   /* beim Weglegen sofort speichern */
+  const lang=Date.now()-lastSync>5*60*1000;
+  if(lang) syncData(false);
+  abgleich(true).then(()=>{ if(lang) ccHole(false) });
+});
+/* liegt die App offen, während das andere Gerät benutzt wird: ab und zu nachsehen */
+setInterval(()=>{ if(!document.hidden) abgleich(false) },90000);
 
 /* ---------- Ableitungen ---------- */
 function curWeek(){
@@ -573,7 +822,9 @@ function vHeute(v){
     <div class="row"><button class="btn ${dayDone?"":"p"}" type="button" id="day" ${dayDone?"disabled":""}>${dayDone?"Heute schon abgehakt":"Tag abhaken"}</button>
     <button class="btn" type="button" id="ask-today">Trainer fragen, was heute wichtig ist</button></div>
   </section>
-  ${newBlock()}`;
+  ${newBlock()}
+  ${SERVER.token()?`<div class="row"><button class="btn s" type="button" id="zg-auf">Weiteres Gerät verbinden</button></div>`:""}`;
+  const za=$("#zg-auf"); if(za) za.onclick=zeigeZugang;
   v.querySelectorAll("[data-step]").forEach(c=>c.onchange=()=>{setStep(c.dataset.step,c.checked);render()});
   const g=$("#go-rev"); if(g) g.onclick=()=>startReview(due.slice(0,5),"Heute");
   $("#go-pr").onclick=()=>prStart(true);

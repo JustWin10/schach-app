@@ -6,7 +6,7 @@
   "start_url": "./#heute",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#f3f4f1",
   "theme_color": "#2f6b4f",
   "icons": [
